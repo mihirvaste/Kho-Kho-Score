@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body {margin:0; font-family:Arial, sans-serif; background:#f3f4f6;}
+    .layout {display:flex; min-height:100vh;}
+    .sidebar {width:260px; background:#111827; color:#f8fafc; display:flex; flex-direction:column;}
+    .sidebar .header {padding:24px 20px; font-size:1.1rem; font-weight:700; border-bottom:1px solid rgba(255,255,255,.12);}
+    .sidebar nav {flex:1; padding:12px 0;}
+    .sidebar a, .sidebar button {width:100%; text-align:left; background:none; border:none; color:inherit; padding:14px 22px; cursor:pointer; font-size:0.95rem; display:block}
+    .main {flex:1; display:flex; flex-direction:column;}
+    .topbar {display:flex; justify-content:space-between; align-items:center; padding:18px 26px; background:#fff; border-bottom:1px solid #e5e7eb;}
+    .content {padding:26px; flex:1;}
+    .page-header {display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;}
+    .button-primary {background:#2563eb; color:#fff; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; font-weight:700;}
+    .stats-grid {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-bottom:24px;}
+    .card {background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:20px;}
+    .search-bar {display:flex; gap:12px; margin-bottom:18px;}
+    .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden;}
+    table {width:100%; border-collapse:collapse;}
+    thead {background:#f9fafb;}
+    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem}
+    .actions button {margin-right:8px; background:none; border:1px solid #d1d5db; padding:8px 12px; border-radius:10px; cursor:pointer;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px;}
+    .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
+    .hidden {display:none}
+  </style>
+  <script>
+    const ttState = {blocked: null, q: '', page:1, pageSize:6};
+    function loadTTStats(){fetch('/api/techteams/stats').then(r=>r.json()).then(s=>{document.getElementById('all-count').textContent=s.total;document.getElementById('blocked-count').textContent=s.blocked})}
+    function renderPagination(total, current, perPage){
+      const container = document.getElementById('tt-pagination');
+      container.innerHTML = '';
+      const totalPages = Math.max(1, Math.ceil(total / perPage));
+      function btn(label, page, disabled){
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.disabled = !!disabled;
+        b.onclick = ()=>{ttState.page = page; loadTT();};
+        b.style.padding = '8px 10px';
+        return b;
+      }
+      container.appendChild(btn('« Prev', Math.max(1, current-1), current<=1));
+      // show up to 7 page buttons centered
+      const start = Math.max(1, current - 3);
+      const end = Math.min(totalPages, start + 6);
+      for(let p=start;p<=end;p++){const b = document.createElement('button');b.textContent = p; if(p===current){b.style.fontWeight='700';b.disabled=true} b.onclick=(()=>{const page=p; return ()=>{ttState.page=page; loadTT();}})(); b.style.padding='8px 10px'; container.appendChild(b)}
+      container.appendChild(btn('Next »', Math.min(totalPages, current+1), current>=totalPages));
+    }
+
+    function loadTT(){
+      const params=new URLSearchParams();
+      if(ttState.blocked!==null) params.set('blocked', ttState.blocked? '1' : '0');
+      if(ttState.q) params.set('q', ttState.q);
+      params.set('page', ttState.page);
+      params.set('page_size', ttState.pageSize);
+      fetch('/api/techteams?'+params).then(r=>r.json()).then(d=>{
+        const tbody=document.getElementById('tt-body');tbody.innerHTML='';
+          d.techteams.forEach(t=>{
+            const tr=document.createElement('tr');
+            const cols = [t.tt_id, t.name, t.gender||'', t.age||'', t.kkfi_number||'', t.phone||'', t.email||''];
+            cols.forEach(c=>{const td=document.createElement('td'); td.textContent = c; tr.appendChild(td)});
+            const actionTd = document.createElement('td'); actionTd.className = 'actions';
+            const blockBtn = document.createElement('button'); blockBtn.textContent = t.blocked ? 'Unblock' : 'Block';
+            blockBtn.addEventListener('click', ()=> toggleBlock(t.tt_id, !t.blocked));
+            const editBtn = document.createElement('button'); editBtn.textContent = 'Edit'; editBtn.addEventListener('click', ()=> openEdit(t.tt_id));
+            const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.addEventListener('click', ()=> confirmDelete(t.tt_id));
+            const resetBtn = document.createElement('button'); resetBtn.textContent = 'Send Reset'; resetBtn.addEventListener('click', ()=> sendReset(t.tt_id));
+            [blockBtn, editBtn, delBtn, resetBtn].forEach(b=>{b.style.marginRight='8px'; actionTd.appendChild(b)});
+            tr.appendChild(actionTd);
+            tbody.appendChild(tr);
+          });
+        renderPagination(d.total, ttState.page, ttState.pageSize);
+      });
+    }
+
+    function setFilter(blocked){ttState.blocked=blocked;ttState.page=1;loadTT();}
+    function openAdd(){document.getElementById('tt-form').reset();document.getElementById('tt-id-row').classList.add('hidden');document.getElementById('modal-backdrop').style.display='flex';document.getElementById('modal-title').textContent='Add Tech Team'}
+    function openEdit(id){fetch('/api/techteams/'+id).then(r=>r.json()).then(t=>{document.getElementById('tt-id-row').classList.remove('hidden');document.getElementById('tt-id').value=t.tt_id;document.getElementById('name').value=t.name;document.getElementById('age').value=t.age||'';document.getElementById('gender').value=t.gender||'';document.getElementById('kkfi_number').value=t.kkfi_number||'';document.getElementById('phone').value=t.phone||'';document.getElementById('email').value=t.email||'';document.getElementById('modal-backdrop').style.display='flex';document.getElementById('modal-title').textContent='Edit Tech Team'})}
+    function confirmDelete(id){if(!confirm('Are you sure do you want to delete?'))return;fetch('/api/techteams/'+id,{method:'DELETE'}).then(()=>{loadTTStats();loadTT()})}
+    function toggleBlock(id,block){if(!confirm('Are you sure about '+(block?'block':'unblock')+'?'))return;fetch('/api/techteams/'+id+'/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked:block})}).then(()=>{loadTTStats();loadTT()})}
+    function sendReset(id){if(!confirm('Send password reset link to user?'))return;fetch('/api/techteams/'+id+'/reset_password',{method:'POST'}).then(r=>r.json()).then(d=>{alert('Reset token: '+d.token)})}
+    async function saveTT(e){
+      e.preventDefault();
+      const id=document.getElementById('tt-id').value;
+      const data={name:document.getElementById('name').value,age:document.getElementById('age').value,gender:document.getElementById('gender').value,kkfi_number:document.getElementById('kkfi_number').value,phone:document.getElementById('phone').value,email:document.getElementById('email').value};
+      try{
+        let res;
+        if(!id){
+          data.password=document.getElementById('password').value;
+          res = await fetch('/api/techteams',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+        } else {
+          res = await fetch('/api/techteams/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+        }
+        const body = await res.json().catch(()=>null);
+        if(!res.ok){
+          alert('Failed to save: ' + (body && (body.error || body.detail) ? (body.error + ' - ' + (body.detail||'')) : res.statusText));
+          return;
+        }
+        closeModal();
+        loadTTStats();
+        loadTT();
+      }catch(err){
+        alert('Network or server error: '+err.message);
+      }
+    }
+    function closeModal(){document.getElementById('modal-backdrop').style.display='none'}
+    function openCreateLink(){document.getElementById('link-backdrop').style.display='flex'}
+    function createLink(){const sel=document.querySelector('input[name=link_ttl]:checked');if(!sel){alert('Select a duration');return}const seconds=parseInt(sel.value);fetch('/api/techteams/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expires_seconds:seconds})}).then(r=>r.json()).then(d=>{document.getElementById('generated-link').textContent=d.link;document.getElementById('link-list').classList.add('hidden');document.getElementById('link-result').classList.remove('hidden')})}
+    window.addEventListener('DOMContentLoaded',()=>{loadTTStats();loadTT();document.getElementById('tt-search').addEventListener('input',e=>{ttState.q=e.target.value;ttState.page=1;loadTT()});document.getElementById('add-button').addEventListener('click',openAdd);document.getElementById('create-link').addEventListener('click',openCreateLink);document.getElementById('tt-form').addEventListener('submit',saveTT);document.getElementById('close-modal').addEventListener('click',closeModal);document.getElementById('close-link').addEventListener('click',()=>{document.getElementById('link-backdrop').style.display='none'})})
+  </script>
+</head>
+<body>
+  <div class="layout">
+    <!-- include: partials/sidebar.html -->
+    <section class="main">
+      <!-- include: partials/topbar.html -->
+      <!-- include: partials/techteam_content.html -->
+      <div class="footer">Tech Team admin tools.</div>
+    </section>
+  </div>
+
+  <!-- include: partials/techteam_modals.html -->
+</body>
+</html>

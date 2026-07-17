@@ -1,0 +1,43 @@
+<div id="modal-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2 id="modal-title">Create Tournament</h2>
+    <form id="tournament-form">
+      <div id="tournament-id-row" class="hidden">
+        <label>Tournament ID
+          <input id="tournament-id" name="tournament_id" readonly>
+        </label>
+      </div>
+      <label>Tournament Name
+        <input id="name" name="name" required>
+      </label>
+      <label>Start Date
+        <input id="start_date" name="start_date" type="date" required>
+      </label>
+      <label>End Date
+        <input id="end_date" name="end_date" type="date" required>
+      </label>
+      <label>Status
+        <select id="status" name="status" required>
+          <option value="active">active</option>
+          <option value="UPCOMING">UPCOMING</option>
+          <option value="cancel">cancel</option>
+          <option value="reschedule">reschedule</option>
+        </select>
+      </label>
+      <label>Tournament For
+        <select id="tournament_for" name="tournament_for" required>
+          <option value="U14">U14</option>
+          <option value="U18">U18</option>
+          <option value="U21">U21</option>
+          <option value="Open">Open</option>
+          <option value="Khelo India">Khelo India</option>
+          <option value="Ultimate Kho Kho">Ultimate Kho Kho</option>
+        </select>
+      </label>
+      <div class="actions">
+        <button type="button" id="close-modal">Cancel</button>
+        <button type="submit" class="button-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>

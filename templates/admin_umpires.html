@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body {margin:0; font-family:Arial, sans-serif; background:#f3f4f6;}
+    .layout {display:flex; min-height:100vh;}
+    .sidebar {width:260px; background:#111827; color:#f8fafc; display:flex; flex-direction:column;}
+    .sidebar .header {padding:24px 20px; font-size:1.1rem; font-weight:700; border-bottom:1px solid rgba(255,255,255,.12);}
+    .sidebar nav {flex:1; padding:12px 0;}
+    .sidebar a, .sidebar button {width:100%; text-align:left; background:none; border:none; color:inherit; padding:14px 22px; cursor:pointer; font-size:0.95rem; display:block;}
+    .main {flex:1; display:flex; flex-direction:column;}
+    .topbar {display:flex; justify-content:space-between; align-items:center; padding:18px 26px; background:#fff; border-bottom:1px solid #e5e7eb;}
+    .content {padding:26px; flex:1;}
+    .page-header {display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;}
+    .button-primary {background:#2563eb; color:#fff; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; font-weight:700;}
+    .stats-grid {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-bottom:24px;}
+    .card {background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:20px; cursor:pointer;}
+    .card:hover {box-shadow:0 10px 20px rgba(0,0,0,.05);}
+    .search-bar {display:flex; gap:12px; margin-bottom:18px;}
+    .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden;}
+    table {width:100%; border-collapse:collapse;}
+    thead {background:#f9fafb;}
+    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem;}
+    .actions button {margin-right:8px; background:none; border:1px solid #d1d5db; padding:8px 12px; border-radius:10px; cursor:pointer;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px;}
+    .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
+    .hidden {display:none;}
+  </style>
+  <script>
+    const umpireState = {blocked: null, q: '', page:1, pageSize:6};
+    function loadUmpireStats(){
+      fetch('/api/umpires/stats')
+        .then(r=>r.json())
+        .then(s=>{document.getElementById('all-umpire-count').textContent = s.total; document.getElementById('blocked-umpire-count').textContent = s.blocked;});
+    }
+    function renderPagination(total, current, perPage){
+      const container = document.getElementById('umpire-pagination');
+      container.innerHTML = '';
+      const totalPages = Math.max(1, Math.ceil(total / perPage));
+      function btn(label, page, disabled){
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.disabled = !!disabled;
+        b.onclick = ()=>{umpireState.page = page; loadUmpires();};
+        b.style.padding = '8px 10px';
+        return b;
+      }
+      container.appendChild(btn('« Prev', Math.max(1, current-1), current<=1));
+      const start = Math.max(1, current - 3);
+      const end = Math.min(totalPages, start + 6);
+      for(let p=start;p<=end;p++){
+        const b = document.createElement('button');
+        b.textContent = p;
+        if(p===current){ b.style.fontWeight='700'; b.disabled = true; }
+        b.onclick = (()=>{const page=p; return ()=>{umpireState.page = page; loadUmpires();};})();
+        b.style.padding = '8px 10px';
+        container.appendChild(b);
+      }
+      container.appendChild(btn('Next »', Math.min(totalPages, current+1), current>=totalPages));
+    }
+    function loadUmpires(){
+      const params = new URLSearchParams();
+      if(umpireState.blocked !== null) params.set('blocked', umpireState.blocked ? '1' : '0');
+      if(umpireState.q) params.set('q', umpireState.q);
+      params.set('page', umpireState.page);
+      params.set('page_size', umpireState.pageSize);
+      fetch('/api/umpires?' + params)
+        .then(r=>r.json())
+        .then(d=>{
+          const tbody = document.getElementById('umpire-body');
+          tbody.innerHTML = '';
+          d.umpires.forEach(u=>{
+            const tr = document.createElement('tr');
+            const cols = [u.umpire_id, u.name, u.gender||'', u.age||'', u.kkfi_number||'', u.phone||'', u.email||''];
+            cols.forEach(c=>{const td = document.createElement('td'); td.textContent = c; tr.appendChild(td);});
+            const actionTd = document.createElement('td'); actionTd.className = 'actions';
+            const blockBtn = document.createElement('button'); blockBtn.textContent = u.blocked ? 'Unblock' : 'Block';
+            blockBtn.addEventListener('click', ()=> toggleBlock(u.umpire_id, !u.blocked));
+            const editBtn = document.createElement('button'); editBtn.textContent = 'Edit'; editBtn.addEventListener('click', ()=> openEdit(u.umpire_id));
+            const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.addEventListener('click', ()=> confirmDelete(u.umpire_id));
+            const resetBtn = document.createElement('button'); resetBtn.textContent = 'Send Reset'; resetBtn.addEventListener('click', ()=> sendReset(u.umpire_id));
+            [blockBtn, editBtn, delBtn, resetBtn].forEach(b=>{b.style.marginRight='8px'; actionTd.appendChild(b);});
+            tr.appendChild(actionTd);
+            tbody.appendChild(tr);
+          });
+          renderPagination(d.total, umpireState.page, umpireState.pageSize);
+        });
+    }
+    function setUmpireFilter(blocked){umpireState.blocked = blocked; umpireState.page = 1; loadUmpires();}
+    function openAdd(){
+      document.getElementById('umpire-form').reset();
+      document.getElementById('umpire-id-row').classList.add('hidden');
+      document.getElementById('umpire-modal-backdrop').style.display = 'flex';
+      document.getElementById('umpire-modal-title').textContent = 'Add Umpire';
+    }
+    function openEdit(id){
+      fetch('/api/umpires/' + id)
+        .then(r=>r.json())
+        .then(u=>{
+          document.getElementById('umpire-id-row').classList.remove('hidden');
+          document.getElementById('umpire-id').value = u.umpire_id;
+          document.getElementById('umpire-name').value = u.name || '';
+          document.getElementById('umpire-age').value = u.age || '';
+          document.getElementById('umpire-gender').value = u.gender || '';
+          document.getElementById('umpire-kkfi_number').value = u.kkfi_number || '';
+          document.getElementById('umpire-phone').value = u.phone || '';
+          document.getElementById('umpire-email').value = u.email || '';
+          document.getElementById('umpire-aadhar_photo_url').value = u.aadhar_photo_url || '';
+          document.getElementById('umpire-modal-backdrop').style.display = 'flex';
+          document.getElementById('umpire-modal-title').textContent = 'Edit Umpire';
+        });
+    }
+    function confirmDelete(id){
+      if(!confirm('Are you sure you want to delete this umpire?')) return;
+      fetch('/api/umpires/' + id, {method:'DELETE'})
+        .then(()=>{loadUmpireStats(); loadUmpires();});
+    }
+    function toggleBlock(id, block){
+      if(!confirm('Are you sure you want to ' + (block ? 'block' : 'unblock') + ' this umpire?')) return;
+      fetch('/api/umpires/' + id + '/block', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({blocked:block})})
+        .then(()=>{loadUmpireStats(); loadUmpires();});
+    }
+    function sendReset(id){
+      if(!confirm('Send password reset token for this umpire?')) return;
+      fetch('/api/umpires/' + id + '/reset_password', {method:'POST'})
+        .then(r=>r.json())
+        .then(d=>{alert('Reset token: ' + d.token);});
+    }
+    async function saveUmpire(e){
+      e.preventDefault();
+      const id = document.getElementById('umpire-id').value;
+      const data = {
+        name: document.getElementById('umpire-name').value,
+        age: document.getElementById('umpire-age').value,
+        gender: document.getElementById('umpire-gender').value,
+        kkfi_number: document.getElementById('umpire-kkfi_number').value,
+        phone: document.getElementById('umpire-phone').value,
+        email: document.getElementById('umpire-email').value,
+        aadhar_photo_url: document.getElementById('umpire-aadhar_photo_url').value,
+      };
+      try {
+        let res;
+        if(!id){
+          data.password = document.getElementById('umpire-password').value;
+          res = await fetch('/api/umpires', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+        } else {
+          res = await fetch('/api/umpires/' + id, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+        }
+        const body = await res.json().catch(() => null);
+        if(!res.ok){
+          alert('Failed to save: ' + (body && (body.error || body.detail) ? (body.error + ' - ' + (body.detail||'')) : res.statusText));
+          return;
+        }
+        closeUmpireModal();
+        loadUmpireStats();
+        loadUmpires();
+      } catch(err){
+        alert('Network or server error: ' + err.message);
+      }
+    }
+    function closeUmpireModal(){
+      document.getElementById('umpire-modal-backdrop').style.display = 'none';
+    }
+    function openCreateLink(){
+      document.getElementById('umpire-link-backdrop').style.display = 'flex';
+      document.getElementById('umpire-link-list').classList.remove('hidden');
+      document.getElementById('umpire-link-result').classList.add('hidden');
+    }
+    function createUmpireLink(){
+      const sel = document.querySelector('input[name=umpire_link_ttl]:checked');
+      if(!sel){ alert('Select a duration'); return; }
+      const seconds = parseInt(sel.value);
+      fetch('/api/umpires/links', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({expires_seconds: seconds})})
+        .then(r=>r.json())
+        .then(d=>{
+          document.getElementById('umpire-generated-link').textContent = d.link;
+          document.getElementById('umpire-link-list').classList.add('hidden');
+          document.getElementById('umpire-link-result').classList.remove('hidden');
+        });
+    }
+    window.addEventListener('DOMContentLoaded', ()=>{
+      loadUmpireStats();
+      loadUmpires();
+      document.getElementById('umpire-search').addEventListener('input', e=>{umpireState.q = e.target.value; umpireState.page = 1; loadUmpires();});
+      document.getElementById('add-umpire').addEventListener('click', openAdd);
+      document.getElementById('create-umpire-link').addEventListener('click', openCreateLink);
+      document.getElementById('umpire-form').addEventListener('submit', saveUmpire);
+      document.getElementById('umpire-close-modal').addEventListener('click', closeUmpireModal);
+      document.getElementById('umpire-close-link').addEventListener('click', ()=>{document.getElementById('umpire-link-backdrop').style.display='none';});
+      document.getElementById('umpire-close-link-2').addEventListener('click', ()=>{document.getElementById('umpire-link-backdrop').style.display='none';});
+    });
+  </script>
+</head>
+<body>
+  <div class="layout">
+    <!-- include: partials/sidebar.html -->
+    <section class="main">
+      <!-- include: partials/topbar.html -->
+      <!-- include: partials/umpire_content.html -->
+    </section>
+  </div>
+  <!-- include: partials/umpire_modals.html -->
+</body>
+</html>

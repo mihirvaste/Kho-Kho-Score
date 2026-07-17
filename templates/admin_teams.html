@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body {margin:0; font-family:Arial, sans-serif; background:#f3f4f6;}
+    .layout {display:flex; min-height:100vh;}
+    .sidebar {width:260px; background:#111827; color:#f8fafc; display:flex; flex-direction:column;}
+    .sidebar .header {padding:24px 20px; font-size:1.1rem; font-weight:700; border-bottom:1px solid rgba(255,255,255,.12);}
+    .sidebar nav {flex:1; padding:12px 0;}
+    .sidebar a, .sidebar button {width:100%; text-align:left; background:none; border:none; color:inherit; padding:14px 22px; cursor:pointer; font-size:0.95rem; display:block}
+    .main {flex:1; display:flex; flex-direction:column;}
+    .topbar {display:flex; justify-content:space-between; align-items:center; padding:18px 26px; background:#fff; border-bottom:1px solid #e5e7eb;}
+    .content {padding:26px; flex:1;}
+    .page-header {display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;}
+    .button-primary {background:#2563eb; color:#fff; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; font-weight:700;}
+    .stats-grid {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-bottom:24px;}
+    .card {background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:20px; cursor:pointer;}
+    .card:hover {box-shadow:0 10px 20px rgba(0,0,0,.05);}
+    .search-bar {display:flex; gap:12px; margin-bottom:18px;}
+    .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden;}
+    table {width:100%; border-collapse:collapse;}
+    thead {background:#f9fafb;}
+    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem;}
+    .actions button {margin-right:8px; background:none; border:1px solid #d1d5db; padding:8px 12px; border-radius:10px; cursor:pointer;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px;}
+    .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
+    .hidden {display:none;}
+  </style>
+  <script>
+    /* team page script will be included in partials/templates */
+  </script>
+</head>
+<body>
+  <div class="layout">
+    <!-- include: partials/sidebar.html -->
+    <section class="main">
+      <!-- include: partials/topbar.html -->
+      <!-- include: partials/teams_content.html -->
+    </section>
+  </div>
+  <!-- include: partials/teams_modals.html -->
+</body>
+</html>

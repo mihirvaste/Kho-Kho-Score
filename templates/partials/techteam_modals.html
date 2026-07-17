@@ -1,0 +1,37 @@
+<div id="modal-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2 id="modal-title">Add Tech Team</h2>
+    <form id="tt-form">
+      <div id="tt-id-row" class="hidden"><label>TT ID<input id="tt-id" readonly></label></div>
+      <label>Name<input id="name" required></label>
+      <label>Password<input id="password" type="password"></label>
+      <label>Age<input id="age" type="number"></label>
+      <label>Gender<select id="gender"><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
+      <label>KKFI Number<input id="kkfi_number"></label>
+      <label>Phone<input id="phone"></label>
+      <label>Email<input id="email" type="email"></label>
+      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:12px"><button type="button" id="close-modal">Cancel</button><button class="button-primary" type="submit">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="link-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2>Create register link for Tech Team</h2>
+    <div id="link-list">
+      <p>Select how long the link will be active:</p>
+      <label><input type="radio" name="link_ttl" value="3600"> 1 hour</label>
+      <label><input type="radio" name="link_ttl" value="10800"> 3 hours</label>
+      <label><input type="radio" name="link_ttl" value="21600"> 6 hours</label>
+      <label><input type="radio" name="link_ttl" value="43200"> 12 hours</label>
+      <label><input type="radio" name="link_ttl" value="86400"> 1 day</label>
+      <label><input type="radio" name="link_ttl" value="2592000"> 1 month</label>
+      <div style="margin-top:12px"><button onclick="createLink()" class="button-primary">Create link</button> <button id="close-link">Cancel</button></div>
+    </div>
+    <div id="link-result" class="hidden">
+      <p>Link created:</p>
+      <pre id="generated-link" style="background:#f3f4f6;padding:12px;border-radius:8px"></pre>
+      <div style="text-align:right;margin-top:12px"><button onclick="navigator.clipboard.writeText(document.getElementById('generated-link').textContent)">Copy</button> <button id="close-link-2" onclick="document.getElementById('link-backdrop').style.display='none'">Close</button></div>
+    </div>
+  </div>
+</div>

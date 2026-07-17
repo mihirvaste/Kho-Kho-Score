@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body{font-family:Arial, sans-serif;background:#f3f4f6;padding:40px}
+    .card{max-width:640px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 20px 40px rgba(15,23,42,.08)}
+    label{display:block;margin:12px 0}
+    input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px}
+    .button-primary{background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
+  </style>
+  <script>
+    async function submitReg(e){
+      e.preventDefault();
+      const token = new URLSearchParams(location.search).get('token');
+      const data = {
+        team_name: document.getElementById('team_name').value,
+        tournament_id: document.getElementById('tournament_id').value,
+        address: document.getElementById('address').value,
+        manager_id: document.getElementById('manager_id').value,
+      };
+      const res = await fetch('/register/team?token=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+      });
+      const body = await res.json();
+      if (!res.ok) { alert(body.error || 'Registration failed'); return; }
+      alert('Team registered: ' + body.team_id);
+    }
+
+    function loadTournaments(){
+      fetch('/api/tournaments').then(r=>r.json()).then(d=>{ const sel = document.getElementById('tournament_id'); sel.innerHTML=''; d.tournaments.forEach(t=>{ const o=document.createElement('option'); o.value=t.tournament_id; o.textContent=t.name; sel.appendChild(o); }); });
+    }
+
+    window.addEventListener('DOMContentLoaded', ()=>{ loadTournaments(); });
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>Team Registration</h2>
+    <form onsubmit="submitReg(event)">
+      <label>Team Name<input id="team_name" required></label>
+      <label>Tournament<select id="tournament_id" required></select></label>
+      <label>Address<input id="address" required></label>
+      <label>Manager<select id="manager_id"></select></label>
+      <div style="text-align:right;margin-top:14px"><button class="button-primary" type="submit">Register</button></div>
+    </form>
+  </div>
+</body>
+</html>

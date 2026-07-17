@@ -1,0 +1,38 @@
+<div id="umpire-modal-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2 id="umpire-modal-title">Add Umpire</h2>
+    <form id="umpire-form">
+      <div id="umpire-id-row" class="hidden"><label>Umpire ID<input id="umpire-id" readonly></label></div>
+      <label>Name<input id="umpire-name" required></label>
+      <label>Password<input id="umpire-password" type="password"></label>
+      <label>Age<input id="umpire-age" type="number"></label>
+      <label>Gender<select id="umpire-gender"><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
+      <label>KKFI Number<input id="umpire-kkfi_number"></label>
+      <label>Phone<input id="umpire-phone"></label>
+      <label>Email<input id="umpire-email" type="email"></label>
+      <label>Aadhar Photo URL<input id="umpire-aadhar_photo_url"></label>
+      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:12px"><button type="button" id="umpire-close-modal">Cancel</button><button class="button-primary" type="submit">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="umpire-link-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2>Create register link for Umpire</h2>
+    <div id="umpire-link-list">
+      <p>Select how long the link will be active:</p>
+      <label><input type="radio" name="umpire_link_ttl" value="3600"> 1 hour</label>
+      <label><input type="radio" name="umpire_link_ttl" value="10800"> 3 hours</label>
+      <label><input type="radio" name="umpire_link_ttl" value="21600"> 6 hours</label>
+      <label><input type="radio" name="umpire_link_ttl" value="43200"> 12 hours</label>
+      <label><input type="radio" name="umpire_link_ttl" value="86400"> 1 day</label>
+      <label><input type="radio" name="umpire_link_ttl" value="2592000"> 1 month</label>
+      <div style="margin-top:12px"><button onclick="createUmpireLink()" class="button-primary">Create link</button> <button id="umpire-close-link">Cancel</button></div>
+    </div>
+    <div id="umpire-link-result" class="hidden">
+      <p>Link created:</p>
+      <pre id="umpire-generated-link" style="background:#f3f4f6;padding:12px;border-radius:8px"></pre>
+      <div style="text-align:right;margin-top:12px"><button onclick="navigator.clipboard.writeText(document.getElementById('umpire-generated-link').textContent)">Copy</button> <button id="umpire-close-link-2">Close</button></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,26 @@
+<div class="content">
+  <div class="page-header">
+    <div>
+      <h1>Tech Team</h1>
+      <p>Manage technical team members</p>
+    </div>
+    <div>
+      <button id="add-button" class="button-primary">Add Tech Team</button>
+      <button id="create-link" class="button-primary" style="background:#10b981;margin-left:8px">Create Link</button>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="card" onclick="setFilter(null)"><h3>All Tech Team candidates</h3><p id="all-count">0</p></div>
+    <div class="card" onclick="setFilter(1)"><h3>Blocked Tech Team candidates</h3><p id="blocked-count">0</p></div>
+  </div>
+  <div class="search-bar">
+    <input id="tt-search" placeholder="Search by ID, name or KKFI...">
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>TT_ID</th><th>Name</th><th>Gender</th><th>Age</th><th>KKFI ID</th><th>Phone</th><th>Email</th><th>Action</th></tr></thead>
+      <tbody id="tt-body"></tbody>
+    </table>
+    <div id="tt-pagination" class="pagination" style="padding:12px;display:flex;gap:8px;justify-content:flex-end"></div>
+  </div>
+</div>

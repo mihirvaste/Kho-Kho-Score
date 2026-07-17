@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body {font:16px sans-serif; max-width:360px; margin:80px auto; padding:16px; background:#f9fafb;}
+    .card {background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:24px; box-shadow:0 10px 24px rgba(15,23,42,.08);}
+    input, button {display:block; width:100%; box-sizing:border-box; margin:10px 0; padding:12px; border:1px solid #d1d5db; border-radius:8px;}
+    button {background:#2563eb; color:#fff; border:none; font-weight:700;}
+    .message {color:#b91c1c; margin-bottom:16px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Admin Loginpage</h1>
+    <p class="message">{{ message }}</p>
+    <form method="post" action="/login">
+      <label>Username <input name="username" required autofocus></label>
+      <label>Password <input name="password" type="password" required></label>
+      <button type="submit">Sign in</button>
+    </form>
+  </div>
+</body>
+</html>

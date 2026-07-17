@@ -1,0 +1,34 @@
+<div id="team-modal-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2 id="team-modal-title">Add Team</h2>
+    <form id="team-form">
+      <div id="team-id-row" class="hidden"><label>Team ID<input id="team-id" readonly></label></div>
+      <label>Team Name<input id="team-name" required></label>
+      <label>Tournament<select id="team-tournament"><option value="">Select tournament</option></select></label>
+      <label>Address<input id="team-address"></label>
+      <label>Manager<select id="team-manager"><option value="">Select manager</option></select></label>
+      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:12px"><button type="button" id="team-close-modal">Cancel</button><button class="button-primary" type="submit">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="team-link-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2>Create register link for Teams</h2>
+    <div id="team-link-list">
+      <p>Select how long the link will be active:</p>
+      <label><input type="radio" name="team_link_ttl" value="3600"> 1 hour</label>
+      <label><input type="radio" name="team_link_ttl" value="10800"> 3 hours</label>
+      <label><input type="radio" name="team_link_ttl" value="21600"> 6 hours</label>
+      <label><input type="radio" name="team_link_ttl" value="43200"> 12 hours</label>
+      <label><input type="radio" name="team_link_ttl" value="86400"> 1 day</label>
+      <label><input type="radio" name="team_link_ttl" value="2592000"> 1 month</label>
+      <div style="margin-top:12px"><button onclick="createTeamLink()" class="button-primary">Create link</button> <button id="team-close-link">Cancel</button></div>
+    </div>
+    <div id="team-link-result" class="hidden">
+      <p>Link created:</p>
+      <pre id="team-generated-link" style="background:#f3f4f6;padding:12px;border-radius:8px"></pre>
+      <div style="text-align:right;margin-top:12px"><button onclick="navigator.clipboard.writeText(document.getElementById('team-generated-link').textContent)">Copy</button> <button id="team-close-link-2">Close</button></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<div class="content">
+  <div class="page-header">
+    <div>
+      <h1>Teams</h1>
+      <p>Manage team registrations and approval.</p>
+    </div>
+    <div>
+      <button id="add-team" class="button-primary">Add Team</button>
+      <button id="create-team-link" class="button-primary" style="background:#10b981;margin-left:8px">Create Link</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="card" id="all-teams-card" onclick="setTeamFilter(null)"><h3>All Teams candidates</h3><p id="all-team-count">0</p></div>
+    <div class="card" id="blocked-teams-card" onclick="setTeamFilter(1)"><h3>Blocked Teams candidates</h3><p id="blocked-team-count">0</p></div>
+  </div>
+
+  <div class="search-bar">
+    <input id="team-search" placeholder="Search by ID, name or address...">
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Team ID</th><th>Team Name</th><th>Tournament ID</th><th>Tournament</th><th>Address</th><th>Manager ID</th><th>Action</th></tr></thead>
+      <tbody id="team-body"></tbody>
+    </table>
+    <div id="team-pagination" class="pagination" style="padding:12px;display:flex;gap:8px;justify-content:flex-end"></div>
+  </div>
+</div>

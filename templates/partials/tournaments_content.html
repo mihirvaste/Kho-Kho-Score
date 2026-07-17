@@ -1,0 +1,30 @@
+<div class="content">
+  <div class="page-header">
+    <div>
+      <h1>Tournaments</h1>
+      <p>Manage tournaments created by SuperAdmin</p>
+    </div>
+    <button type="button" id="create-button" class="button-primary">Create Tournament</button>
+  </div>
+  <div class="stats-grid">
+    <div class="card stat-card active" data-status=""><h3>Total Tournaments</h3><p id="total-count">0</p></div>
+    <div class="card stat-card" data-status="active"><h3>Active Tournaments</h3><p id="active-count">0</p></div>
+    <div class="card stat-card" data-status="UPCOMING"><h3>Upcoming Tournaments</h3><p id="upcoming-count">0</p></div>
+    <div class="card stat-card" data-status="completed"><h3>Completed Tournaments</h3><p id="completed-count">0</p></div>
+  </div>
+  <div class="search-bar">
+    <input id="search-input" type="search" placeholder="Search tournaments by ID or name...">
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tournament ID</th><th>Tournament Name</th><th>Schedule</th><th>Status</th><th>Tournament For</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tournament-body"></tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+<!-- include: partials/tournaments_modal.html -->

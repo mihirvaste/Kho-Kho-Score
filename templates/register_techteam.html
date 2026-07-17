@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body{font-family:Arial, sans-serif;background:#f3f4f6;padding:40px}
+    .card{max-width:640px;margin:0 auto;background:#fff;padding:24px;border-radius:12px}
+    label{display:block;margin:12px 0}
+    input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px}
+    .button-primary{background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
+  </style>
+  <script>
+    function submitReg(e){e.preventDefault();const token=new URLSearchParams(location.search).get('token');const data={name:document.getElementById('name').value,password:document.getElementById('password').value,age:document.getElementById('age').value,gender:document.getElementById('gender').value,kkfi_number:document.getElementById('kkfi_number').value,phone:document.getElementById('phone').value,email:document.getElementById('email').value};fetch('/register/techteam?token='+encodeURIComponent(token),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).then(d=>{if(d.error)alert(d.error);else alert('Registered: '+d.tt_id)})}
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>Tech Team Registration</h2>
+    <form onsubmit="submitReg(event)">
+      <label>Name<input id="name" required></label>
+      <label>Password<input id="password" type="password" required></label>
+      <label>Age<input id="age" type="number" required></label>
+      <label>Gender<select id="gender"><option value="M">M</option><option value="F">F</option></select></label>
+      <label>KKFI Number<input id="kkfi_number" required></label>
+      <label>Phone<input id="phone" required></label>
+      <label>Email<input id="email" type="email" required></label>
+      <div style="text-align:right;margin-top:12px"><button class="button-primary" type="submit">Register</button></div>
+    </form>
+  </div>
+</body>
+</html>

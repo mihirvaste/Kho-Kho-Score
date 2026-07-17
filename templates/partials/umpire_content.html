@@ -1,0 +1,29 @@
+<div class="content">
+  <div class="page-header">
+    <div>
+      <h1>Umpire</h1>
+      <p>Manage umpire registrations and approval.</p>
+    </div>
+    <div>
+      <button id="add-umpire" class="button-primary">Add Umpire</button>
+      <button id="create-umpire-link" class="button-primary" style="background:#10b981;margin-left:8px">Create Link</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="card" id="all-umpires-card" onclick="setUmpireFilter(null)"><h3>All Umpire candidates</h3><p id="all-umpire-count">0</p></div>
+    <div class="card" id="blocked-umpires-card" onclick="setUmpireFilter(1)"><h3>Blocked Umpire candidates</h3><p id="blocked-umpire-count">0</p></div>
+  </div>
+
+  <div class="search-bar">
+    <input id="umpire-search" placeholder="Search by ID, name or KKFI...">
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Umpire ID</th><th>Name</th><th>Gender</th><th>Age</th><th>KKFI ID</th><th>Phone</th><th>Email</th><th>Action</th></tr></thead>
+      <tbody id="umpire-body"></tbody>
+    </table>
+    <div id="umpire-pagination" class="pagination" style="padding:12px;display:flex;gap:8px;justify-content:flex-end"></div>
+  </div>
+</div>

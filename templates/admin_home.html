@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body {margin:0; font-family:Arial, sans-serif; background:#f3f4f6;}
+    .layout {display:flex; min-height:100vh;}
+    .sidebar {width:260px; background:#111827; color:#f8fafc; display:flex; flex-direction:column;}
+    .sidebar .header {padding:24px 20px; font-size:1.1rem; font-weight:700; border-bottom:1px solid rgba(255,255,255,.12);}
+    .sidebar nav {flex:1; padding:12px 0;}
+    .sidebar button {width:100%; text-align:left; background:none; border:none; color:inherit; padding:14px 22px; cursor:pointer; font-size:0.95rem; transition:background .2s;}
+    .sidebar button:hover, .sidebar button.active {background:rgba(255,255,255,.08);}
+    .sidebar .logout {margin-top:auto; border-top:1px solid rgba(255,255,255,.12);}
+    .main {flex:1; display:flex; flex-direction:column;}
+    .topbar {display:flex; justify-content:space-between; align-items:center; padding:18px 26px; background:#fff; border-bottom:1px solid #e5e7eb;}
+    .topbar .brand {display:flex; align-items:center; gap:14px;}
+    .topbar .brand span {display:inline-flex; width:40px; height:40px; align-items:center; justify-content:center; border-radius:12px; color:#fff; font-weight:700;}
+    .topbar .brand .left {background:#2563eb;}
+    .topbar .brand .right {background:#111827;}
+    .topbar .title {font-size:1.05rem; font-weight:700; color:#111827;}
+    .page-header {display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;}
+    .page-header h1 {margin:0; font-size:1.8rem; color:#111827;}
+    .button-primary {background:#2563eb; color:#fff; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; font-weight:700;}
+    .stats-grid {display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; margin-bottom:24px;}
+    .card {background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:20px;}
+    .card h3 {margin:0 0 12px; font-size:1rem; color:#6b7280;}
+    .card p {margin:0; font-size:1.9rem; font-weight:700; color:#111827;}
+    .search-bar {display:flex; gap:12px; margin-bottom:18px;}
+    .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden;}
+    table {width:100%; border-collapse:collapse;}
+    thead {background:#f9fafb;}
+    th, td {padding:16px; text-align:left; border-bottom:1px solid #e5e7eb;}
+    th {color:#6b7280; font-size:0.9rem;}
+    td {color:#111827;}
+    .badge {display:inline-flex; padding:6px 10px; border-radius:999px; font-size:0.8rem; font-weight:700;}
+    .badge.active {background:#d1fae5; color:#166534;}
+    .badge.upcoming {background:#fef9c3; color:#92400e;}
+    .badge.cancel {background:#fee2e2; color:#991b1b;}
+    .badge.reschedule {background:#e0f2fe; color:#0369a1;}
+    .actions button {margin-right:8px; background:none; border:1px solid #d1d5db; padding:8px 12px; border-radius:10px; cursor:pointer;}
+    .pagination {display:flex; justify-content:flex-end; gap:8px; padding:16px;}
+    .pagination button {border:1px solid #d1d5db; background:#fff; padding:10px 14px; border-radius:10px; cursor:pointer;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px;}
+    .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
+    .modal h2 {margin-top:0;}
+    .modal form {display:grid; gap:14px;}
+    .modal label {display:flex; flex-direction:column; font-weight:700; color:#111827;}
+    .modal input, .modal select {margin-top:8px; padding:12px 14px; border:1px solid #d1d5db; border-radius:10px;}
+    .modal .actions {display:flex; justify-content:flex-end; gap:12px; margin-top:20px;}
+    .modal .actions button {padding:12px 18px; border-radius:10px; font-weight:700;}
+    .hidden {display:none;}
+  </style>
+  <script>
+    const state = { status: null, q: '', page: 1, pageSize: 5 };
+    function badgeClass(status) {
+      return status === 'active' ? 'active' : status === 'UPCOMING' ? 'upcoming' : status === 'cancel' ? 'cancel' : 'reschedule';
+    }
+    function formatSchedule(item) {
+      return `${item.start_date} → ${item.end_date}`;
+    }
+    function updateStats(stats) {
+      document.getElementById('total-count').textContent = stats.total;
+      document.getElementById('active-count').textContent = stats.active;
+      document.getElementById('upcoming-count').textContent = stats.upcoming;
+      document.getElementById('completed-count').textContent = stats.completed;
+    }
+    function loadTournaments() {
+      const params = new URLSearchParams({
+        status: state.status || '',
+        q: state.q,
+        page: state.page,
+        page_size: state.pageSize,
+      });
+      fetch(`/api/tournaments?${params}`).then(res => res.json()).then(data => {
+        const tbody = document.getElementById('tournament-body');
+        tbody.innerHTML = '';
+        data.tournaments.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.tournament_id}</td>
+            <td>${item.name}</td>
+            <td>${formatSchedule(item)}</td>
+            <td><span class="badge ${badgeClass(item.status)}">${item.status}</span></td>
+            <td>${item.tournament_for}</td>
+            <td class="actions">
+              <button type="button" onclick="openEdit('${item.tournament_id}')">Edit</button>
+              <button type="button" onclick="openDelete('${item.tournament_id}')">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+        const total = data.total;
+        renderPagination(total);
+      });
+    }
+    function loadStats() {
+      fetch('/api/tournaments/stats').then(res => res.json()).then(updateStats);
+    }
+    function renderPagination(total) {
+      const pages = Math.max(1, Math.ceil(total / state.pageSize));
+      const container = document.getElementById('pagination');
+      container.innerHTML = '';
+      for (let i = 1; i <= pages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.disabled = i === state.page;
+        btn.onclick = () => { state.page = i; loadTournaments(); };
+        container.appendChild(btn);
+      }
+    }
+    function setFilter(status) {
+      state.status = status;
+      state.page = 1;
+      loadTournaments();
+      document.querySelectorAll('.stat-card').forEach(card => card.classList.toggle('active', card.dataset.status === status));
+    }
+    function openCreate() {
+      document.getElementById('modal-title').textContent = 'Create Tournament';
+      document.getElementById('tournament-form').reset();
+      document.getElementById('tournament-id-row').classList.add('hidden');
+      document.getElementById('tournament-id').value = '';
+      document.getElementById('modal-backdrop').style.display = 'flex';
+    }
+    function openEdit(id) {
+      fetch(`/api/tournaments/${id}`).then(res => res.json()).then(item => {
+        document.getElementById('modal-title').textContent = 'Edit Tournament';
+        document.getElementById('tournament-id-row').classList.remove('hidden');
+        document.getElementById('tournament-id').value = item.tournament_id;
+        document.getElementById('name').value = item.name;
+        document.getElementById('start_date').value = item.start_date;
+        document.getElementById('end_date').value = item.end_date;
+        document.getElementById('status').value = item.status;
+        document.getElementById('tournament_for').value = item.tournament_for;
+        document.getElementById('modal-backdrop').style.display = 'flex';
+      });
+    }
+    function openDelete(id) {
+      const confirmed = confirm('Are you sure do you want to delete?');
+      if (!confirmed) return;
+      fetch(`/api/tournaments/${id}`, { method: 'DELETE' }).then(() => { loadStats(); loadTournaments(); });
+    }
+    function closeModal() {
+      document.getElementById('modal-backdrop').style.display = 'none';
+    }
+    function saveTournament(event) {
+      event.preventDefault();
+      const id = document.getElementById('tournament-id').value;
+      const data = {
+        name: document.getElementById('name').value,
+        start_date: document.getElementById('start_date').value,
+        end_date: document.getElementById('end_date').value,
+        status: document.getElementById('status').value,
+        tournament_for: document.getElementById('tournament_for').value,
+      };
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `/api/tournaments/${id}` : '/api/tournaments';
+      fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then(() => {
+        closeModal();
+        loadStats();
+        loadTournaments();
+      });
+    }
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStats();
+      loadTournaments();
+      document.getElementById('search-input').addEventListener('input', e => {
+        state.q = e.target.value;
+        state.page = 1;
+        loadTournaments();
+      });
+      document.getElementById('create-button').addEventListener('click', openCreate);
+      document.getElementById('close-modal').addEventListener('click', closeModal);
+      document.getElementById('tournament-form').addEventListener('submit', saveTournament);
+      document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('click', () => setFilter(card.dataset.status));
+      });
+    });
+  </script>
+</head>
+<body>
+  <div class="layout">
+    <!-- include: partials/sidebar.html -->
+    <section class="main">
+      <!-- include: partials/topbar.html -->
+      <!-- include: partials/tournaments_content.html -->
+      <div class="footer">This is the admin tournament dashboard.</div>
+    </section>
+  </div>
+  <div id="modal-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h2 id="modal-title">Create Tournament</h2>
+      <form id="tournament-form">
+        <div id="tournament-id-row" class="hidden">
+          <label>Tournament ID
+            <input id="tournament-id" name="tournament_id" readonly>
+          </label>
+        </div>
+        <label>Tournament Name
+          <input id="name" name="name" required>
+        </label>
+        <label>Start Date
+          <input id="start_date" name="start_date" type="date" required>
+        </label>
+        <label>End Date
+          <input id="end_date" name="end_date" type="date" required>
+        </label>
+        <label>Status
+          <select id="status" name="status" required>
+            <option value="active">active</option>
+            <option value="UPCOMING">UPCOMING</option>
+            <option value="cancel">cancel</option>
+            <option value="reschedule">reschedule</option>
+          </select>
+        </label>
+        <label>Tournament For
+          <select id="tournament_for" name="tournament_for" required>
+            <option value="U14">U14</option>
+            <option value="U18">U18</option>
+            <option value="U21">U21</option>
+            <option value="Open">Open</option>
+            <option value="Khelo India">Khelo India</option>
+            <option value="Ultimate Kho Kho">Ultimate Kho Kho</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button type="button" id="close-modal">Cancel</button>
+          <button type="submit" class="button-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
