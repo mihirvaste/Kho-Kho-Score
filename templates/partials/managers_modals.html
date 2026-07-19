@@ -1,0 +1,59 @@
+<div id="manager-modal-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2 id="manager-modal-title">Add Manager</h2>
+    <form id="manager-form">
+      <div id="manager-id-row" class="hidden"><label>Manager ID<input id="manager-id" readonly></label></div>
+      <label>Name<input id="manager-name" name="name" required></label>
+      <label>Password<input id="manager-password" name="password" type="password"></label>
+      <label>Age<input id="manager-age" name="age" type="number" required></label>
+      <label>Gender<select id="manager-gender" name="gender" required><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
+      <label>KKFI Number<input id="manager-kkfi" name="kkfi_number" required></label>
+      <label>Phone<input id="manager-phone" name="phone" required></label>
+      <label>Email<input id="manager-email" name="email" type="email" required></label>
+      <label>Address<input id="manager-address" name="address" required></label>
+      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:12px"><button type="button" id="manager-close-modal">Cancel</button><button class="button-primary" type="submit">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="manager-link-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2>Create register link for Managers</h2>
+    <div id="manager-link-list">
+      <p>Select how long the link will be active:</p>
+      <label><input type="radio" name="manager_link_ttl" value="3600"> 1 hour</label>
+      <label><input type="radio" name="manager_link_ttl" value="10800"> 3 hours</label>
+      <label><input type="radio" name="manager_link_ttl" value="21600"> 6 hours</label>
+      <label><input type="radio" name="manager_link_ttl" value="43200"> 12 hours</label>
+      <label><input type="radio" name="manager_link_ttl" value="86400"> 1 day</label>
+      <label><input type="radio" name="manager_link_ttl" value="2592000"> 1 month</label>
+      <div style="margin-top:12px"><button onclick="createManagerLink()" class="button-primary">Create link</button> <button id="manager-close-link">Cancel</button></div>
+    </div>
+    <div id="manager-link-result" class="hidden">
+      <p>Link created:</p>
+      <pre id="manager-generated-link" style="background:#f3f4f6;padding:12px;border-radius:8px"></pre>
+      <div style="text-align:right;margin-top:12px"><button onclick="navigator.clipboard.writeText(document.getElementById('manager-generated-link').textContent)">Copy</button> <button id="manager-close-link-2" onclick="document.getElementById('manager-link-backdrop').style.display='none'">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="team-players-link-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2>Create register link for Team and its players</h2>
+    <div id="team-players-link-list">
+      <p>Select how long the link will be active:</p>
+      <label><input type="radio" name="team_players_link_ttl" value="3600"> 1 hour</label>
+      <label><input type="radio" name="team_players_link_ttl" value="10800"> 3 hours</label>
+      <label><input type="radio" name="team_players_link_ttl" value="21600"> 6 hours</label>
+      <label><input type="radio" name="team_players_link_ttl" value="43200"> 12 hours</label>
+      <label><input type="radio" name="team_players_link_ttl" value="86400"> 1 day</label>
+      <label><input type="radio" name="team_players_link_ttl" value="2592000"> 1 month</label>
+      <div style="margin-top:12px"><button onclick="createCombinedLink()" class="button-primary">Create link</button> <button id="team-players-close-link">Cancel</button></div>
+    </div>
+    <div id="team-players-link-result" class="hidden">
+      <p>Link created:</p>
+      <pre id="team-players-generated-link" style="background:#f3f4f6;padding:12px;border-radius:8px"></pre>
+      <div style="text-align:right;margin-top:12px"><button onclick="navigator.clipboard.writeText(document.getElementById('team-players-generated-link').textContent)">Copy</button> <button id="team-players-close-link-2">Close</button></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,49 @@
+Inside player when we add new player 
+if when i select team it should automaticly fecth manger in list and it should be non editable 
+
+Now again go to the managers page 
+
+At right of the heading # Managers there is already 2 buttons 
+1. Add Manager
+2. Create Link
+
+i want you to create 1 buttons there 
+ create team  and all 15 players and 
+  On click of this button it should open popup and there must be heading Create register link for Team and its players
+ below that there should be List for how many time link will be active
+ like 1hour , 3hour, 6hour ,12 hour , 1 day , 1month
+ and there should be select tournamet
+ and below there should be create link 
+ on click of create link button
+it should hide list and show that link with button to copy 
+
+and that link must contain form to register Team and players by themsalves 
+Here you understand how UI will look like 
+keep fields manddatory 
+fields
+there will be only one team 
+Teams
+    team_id (PK, String, starts with "T...")Auto generate
+    tournament_id (FK to Tournaments)Auto fetch
+    team_name (String)
+    address (String)
+    manager_id (FK to Team_Managers)Auto fetch
+
+Save button then only show 15 players form will be visible
+
+Players will look like this 
+first this is schema 
+Players
+    player_id (PK, String, starts with "P...")Auto generate
+    team_id (FK to Teams)Auto fect Team Id
+    player_name (string)
+    kkfi_number (String, Unique)
+    chest_number (Integer)
+    document_url (String)not man
+    manager_id (FK to Team_Managers)
+
+by default ther should on fiels for one player to add 
+after adding one player then only show next player field till 15th player.
+
+for each player in list there should be working edit and delete button
+

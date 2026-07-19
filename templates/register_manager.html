@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body{font-family:Arial, sans-serif;background:#f3f4f6;padding:40px}
+    .card{max-width:640px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 20px 40px rgba(15,23,42,.08)}
+    label{display:block;margin:12px 0}
+    input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px}
+    .button-primary{background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
+  </style>
+  <script>
+    async function submitReg(e){
+      e.preventDefault();
+      const token = new URLSearchParams(location.search).get('token');
+      const data = {
+        name: document.getElementById('name').value,
+        password: document.getElementById('password').value,
+        age: document.getElementById('age').value,
+        gender: document.getElementById('gender').value,
+        kkfi_number: document.getElementById('kkfi_number').value,
+        phone: document.getElementById('phone').value,
+        email: document.getElementById('email').value,
+        address: document.getElementById('address').value,
+      };
+      const res = await fetch('/register/manager?token=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+      });
+      const body = await res.json();
+      if (!res.ok) { alert(body.error || 'Registration failed'); return; }
+      alert('Manager registered: ' + body.manager_id);
+    }
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>Manager Registration</h2>
+    <form onsubmit="submitReg(event)">
+      <label>Name<input id="name" required></label>
+      <label>Password<input id="password" type="password" required></label>
+      <label>Age<input id="age" type="number" required></label>
+      <label>Gender<select id="gender" required><option value="">Select</option><option value="M">M</option><option value="F">F</option></select></label>
+      <label>KKFI Number<input id="kkfi_number" required></label>
+      <label>Phone<input id="phone" required></label>
+      <label>Email<input id="email" type="email" required></label>
+      <label>Address<input id="address" required></label>
+      <div style="text-align:right;margin-top:14px"><button class="button-primary" type="submit">Register</button></div>
+    </form>
+  </div>
+</body>
+</html>

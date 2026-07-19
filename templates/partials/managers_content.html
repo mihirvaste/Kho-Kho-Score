@@ -1,0 +1,40 @@
+<div class="content">
+  <div class="page-header">
+    <div>
+      <h1>Managers</h1>
+      <p>Manage team managers and registration links</p>
+    </div>
+    <div>
+      <button id="add-manager-button" class="button-primary">Add Managers</button>
+      <button id="create-manager-link" class="button-primary" style="background:#10b981;margin-left:8px">Create Link</button>
+      <button id="create-team-players-link" class="button-primary" style="background:#7c3aed;margin-left:8px">Create Team & Players Link</button>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="card" onclick="setManagerFilter(null)"><h3>All Managers candidates</h3><p id="manager-all-count">0</p></div>
+    <div class="card" onclick="setManagerFilter(1)"><h3>Blocked Managers candidates</h3><p id="manager-blocked-count">0</p></div>
+  </div>
+  <div class="search-bar">
+    <input id="manager-search" placeholder="Search by ID, name, phone or KKFI...">
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Manager ID</th>
+          <th>Team Name</th>
+          <th>Team ID</th>
+          <th>Tournament ID</th>
+          <th>Tournament Name</th>
+          <th>Address</th>
+          <th>Manager Name</th>
+          <th>Manager Phone</th>
+          <th>KKFI Number</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="manager-body"></tbody>
+    </table>
+    <div id="manager-pagination" class="pagination" style="padding:12px;display:flex;gap:8px;justify-content:flex-end"></div>
+  </div>
+</div>

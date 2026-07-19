@@ -1,0 +1,546 @@
+Now We are working on Tech Team Panel
+inside we are working on Tournament Matches 
+there is a Heading "Tournament Matches" and at right side there are 2 buttons Create tournament and create link 
+nad below there is a list of tournament with view matches button on each 
+
+on click of that view matahces button 
+it should open new page 
+here is the new design of the that page
+
+And there should be headind of Create draws for {tournament_name}
+Below this there should be 3 tabs
+1. Group stages
+2. Knockout Stages
+3. League
+
+if user is at Group stages
+he has to choose group stages like A,B,C,D,E,F,G,H, I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z and 
+And how many maximum teams should be there in each group.
+after selecting all the details it will show all groups below that then 
+user has to select teams inside group stages 
+like of if user select there will be A,B,C,D 
+group are there and there will be max 4 teams in each 
+i will choose 
+For group A : Team a Team b Team c Team d
+For group B : Team e Team f Team g Team h
+for group C: team i team j team k team l
+for group D: team m team n team o team p
+
+Then you by yourself have to create matches list under each group and then user has to select which umpire will host this match.
+
+After these should seperate matches cretion part 
+first how many matches remaining for ex there are 4 matches remaining
+so for that you need to create 4 list of selected teams and umpires
+group_name= "quater final"
+Match 1: Team b vs Team H umpire: Alokh sharma
+Match 4: Team c vs Team e umpire: Ulka kubar
+Match 3: Team j vs Team p umpire: Ramanujam
+Match 2: Team m vs Team k umpire: Viraj sharma
+two teams and umpire who will host the match
+ 
+
+After this there should be save button to save all the matches into db
+
+
+if user selects Knockout Stages
+
+then directly show 
+first how many matches remaining for ex there are 4 matches remaining
+so for that you need to create 4 list of selected teams and umpires
+group_name= "quater final"
+Match 1: Team b vs Team H umpire: Alokh sharma
+Match 4: Team c vs Team e umpire: Ulka kubar
+Match 3: Team j vs Team p umpire: Ramanujam
+Match 2: Team m vs Team k umpire: Viraj sharma
+two teams and umpire who will host the match
+ 
+
+After this there should be save button to save all the matches into db
+
+Similar with League just like Knockout
+
+
+
+
+
+##################################################################################
+
+
+Now We are working on Tech Team Panel
+inside we are working on Tournament Matches 
+there is a Heading "Tournament Matches" and at right side there are 2 buttons Create tournament and create link 
+nad below there is a list of tournament with view matches button on each 
+
+on click of that view matahces button 
+it should open new page 
+here is the new design of the that page
+Create a new page called
+
+Create Draws - {Tournament Name}
+
+The page contains three tabs:
+
+1. Group Stage
+2. Knockout Stage
+3. League
+
+==================================================
+
+GROUP STAGE
+
+Use a guided wizard.
+
+-----------------------------------
+Step 1
+Tournament Configuration
+-----------------------------------
+
+Fields
+
+• Number of Groups
+• Teams Per Group
+• Match Format
+
+(Round Robin)
+
+Button
+
+Generate Groups
+
+-----------------------------------
+Step 2
+Assign Teams
+-----------------------------------
+
+Automatically generate:
+
+Group A
+Group B
+Group C
+...
+
+Each group contains searchable dropdowns.
+
+A team can exist in only one group.
+
+Show remaining unassigned teams.
+
+-----------------------------------
+Step 3
+Generate Fixtures
+-----------------------------------
+
+Button
+
+Generate Fixtures
+
+The system automatically generates every Round Robin fixture.
+
+Example
+
+Group A
+
+Team A vs Team B
+
+Team A vs Team C
+
+Team A vs Team D
+
+Team B vs Team C
+
+Team B vs Team D
+
+Team C vs Team D
+
+Each fixture has
+
+Date (optional)
+
+Time (optional)
+
+Ground (optional)
+
+Umpire
+
+Status
+
+(Default: Scheduled)
+
+-----------------------------------
+Step 4
+Knockout Fixtures
+-----------------------------------
+
+Show a section
+
+Knockout Fixtures
+
+Dropdown
+
+Stage
+
+Quarter Final
+
+Semi Final
+
+Final
+
+User selects
+
+Number of Matches
+
+For every match
+
+Team 1
+
+Team 2
+
+Ground
+
+Date
+
+Time
+
+Umpire
+
+Status
+
+Button
+
+Add Match
+
+Allow unlimited matches.
+
+-----------------------------------
+Step 5
+
+Preview
+
+Show all generated matches in tables.
+
+Allow editing before saving.
+
+Save All
+
+==================================================
+
+KNOCKOUT TAB
+
+Only create knockout fixtures.
+
+Fields
+
+Stage
+
+Number of Matches
+
+Generate
+
+Each generated row
+
+Team 1
+
+Team 2
+
+Ground
+
+Date
+
+Time
+
+Umpire
+
+Status
+
+Save
+
+==================================================
+
+LEAGUE TAB
+
+Same as Knockout but without stages.
+
+Simply create league fixtures.
+
+==================================================
+
+General Features
+
+• Searchable dropdowns
+• Responsive layout
+• Prevent duplicate teams
+• Prevent duplicate fixtures
+• Edit generated fixtures
+• Delete fixture
+• Auto numbering
+• Confirmation before save
+• Success and error alerts
+• Save everything using APIs
+
+
+
+
+#####################################
+
+Now We are working on Tech Team Panel
+inside we are working on Tournament Matches
+When i click on single tournament its not fetching it on create draws # Create Draws - {{ tournament_name }}
+
+moreover it is showing me erroer messege
+Add teams to this tournament before generating groups.
+
+Remove Date , Time , Group , status
+
+only we need to select umpires form the db
+
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+Create a new page that opens when the user clicks the "View Matches" button from the Tournament Matches list.
+
+Page Title
+
+Create Draws for {Tournament_Name}
+
+The page should contain three tabs.
+
+1. Group Stages
+2. Knockout Stages
+3. League
+
+---------------------------------------------------
+GROUP STAGES TAB
+---------------------------------------------------
+
+Step 1 - Group Configuration
+
+Allow the user to configure the group stage.
+
+Fields:
+
+• Number of Groups
+  The groups should automatically be named alphabetically:
+  A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z
+
+• Maximum Teams Per Group
+
+Example:
+
+Number of Groups: 4
+
+Maximum Teams Per Group: 4
+
+Clicking "Generate Groups" should create four group cards:
+
+Group A
+Group B
+Group C
+Group D
+
+---------------------------------------------------
+
+Step 2 - Team Assignment
+
+Each group card should contain dropdowns for selecting teams.
+
+Example:
+
+Group A
+
+Team 1
+Team 2
+Team 3
+Team 4
+
+Group B
+
+Team 1
+Team 2
+Team 3
+Team 4
+
+Continue similarly for every generated group.
+
+The same team must not be selectable in multiple groups.
+
+---------------------------------------------------
+
+Step 3 - Generate Group Matches
+
+Once all teams are selected, click
+
+Generate Matches
+
+The system should automatically generate every match inside each group using a round-robin format.
+
+Example:
+
+Group A
+
+Match 1
+Team A vs Team B
+
+Select Umpire
+
+Match 2
+Team A vs Team C
+
+Select Umpire
+
+Match 3
+Team A vs Team D
+
+Select Umpire
+
+...
+
+Every generated match should have an Umpire dropdown.
+
+---------------------------------------------------
+
+Step 4 - Knockout / Remaining Matches
+
+Below all group matches create a separate section.
+
+Heading
+
+Remaining Matches
+
+Display:
+
+Current Stage
+(Example: Quarter Final)
+
+Display all remaining matches.
+
+Example
+
+Quarter Final
+
+Match 1
+
+Team B vs Team H
+
+Select Umpire
+
+Match 2
+
+Team M vs Team K
+
+Select Umpire
+
+Match 3
+
+Team J vs Team P
+
+Select Umpire
+
+Match 4
+
+Team C vs Team E
+
+Select Umpire
+
+Each match should allow selecting:
+
+• Team 1
+• Team 2
+• Umpire
+
+---------------------------------------------------
+
+Step 5
+
+Display a Save button.
+
+Clicking Save should save:
+
+• Group configuration
+• Team assignments
+• Group matches
+• Knockout matches
+• Assigned umpires
+
+into the database.
+
+===================================================
+
+KNOCKOUT STAGES TAB
+
+No group creation is required.
+
+Immediately display:
+
+Stage Name
+
+(Default example:
+Quarter Final)
+
+Remaining Matches
+
+Match 1
+
+Team A vs Team B
+
+Select Umpire
+
+Match 2
+
+Team C vs Team D
+
+Select Umpire
+
+...
+
+Each match contains:
+
+• Team 1 dropdown
+• Team 2 dropdown
+• Umpire dropdown
+
+At the bottom display a Save button.
+
+Saving should store all knockout matches into the database.
+
+===================================================
+
+LEAGUE TAB
+
+The League tab should work exactly like the Knockout tab.
+
+Display:
+
+Stage Name
+
+Match List
+
+For every match allow:
+
+• Team 1
+• Team 2
+• Umpire
+
+Display Save button.
+
+Save all league matches into the database.
+
+===================================================
+
+General Requirements
+
+Use a clean admin panel UI.
+
+Display the page inside the existing Tech Team Panel layout.
+
+All dropdowns should be searchable.
+
+Prevent duplicate team selection.
+
+Validate all required fields before saving.
+
+Show success/error messages.
+
+The page should be fully responsive.
+
+No duplicate matches should be generated.
+
+The generated matches should be editable before saving.

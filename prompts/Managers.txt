@@ -3,13 +3,16 @@ One click Managers form left bar
 At right side there are few changes (design is almost same)
 Firstly here is the db schema for Managers
 **
-Managers
-team_id (PK, String, starts with "T...")
-tournament_id (FK to Tournaments)
-team_name (String)
+Team_Managers
+manager_id (PK, String, starts with "TM...")
+name (String)
+age (Integer)
+gender (String)
+kkfi_number (String, Unique)
+phone (String)
+email (String, Unique)
+password_hash (String)
 address (String)
-manager_id (FK to Team_Managers)
-
 
 Now look at the design perspective
 At top there should be Heading Managers and at right side there should be 2 buttons Add Managers and Create Link
@@ -20,7 +23,7 @@ there should be 2 cards
 below this there should be working search bar 
 for below list
 Here is a list which should contain 
-Team_ID , team_name , tournament_id, tournament_name , address, manager_id,Manager name,Manager_number, Action
+Manager_ID  ,team_name(should come from teams table),team_id(should come from teams table), tournament_id(should come from teams table), tournament_name(should come from teams table) , address, manager_id,Manager name,Manager_phone,kkfi_number, Action
 
 inside action there should be button like block , unblock , delete ,edit
 
@@ -28,27 +31,29 @@ on click of Block , Unblock , Delete  actions it should show me are you sure abo
 if user is blocked then ""Unblocked"" button should be visible
 if user is Unblocked then ""Blocked"" button should be visible
 
-Now there is a Add Teams button at top
-on click open popup to Add Teams form and save button should be there to save data into database 
+Now there is a Add Managers button at top
+on click open popup to Add Managers form and save button should be there to save data into database 
 on click of edit button from list opens same popup which with fetched data from database and after editing it should save with same id 
 Form must have below fields:
-**
-- Team_ID (PK, String, starts with "TT...")[while editing automatic fetch [Not editable] and while creating hide)]
-- team_name (String)
-- tournament_id (FK to Tournaments) Select tournmaent from existing tournament list
-- age (Integer)
-- gender (String)
-- address (String)
-- manager_id (FK to Team_Managers)Select managers from existing tournament list
+
+Team_Managers
+manager_id (PK, String, starts with "TM...") (while editing visibar but not editabel and while creating should be invisible)
+name (String)
+age (Integer)
+gender (String)
+kkfi_number (String, Unique)
+phone (String)
+email (String, Unique)
+password_hash (String)
+address (String)
 
 
-**
 One more thing you need to do is when we click on any card which
 our list should get filtered accordingly 
-for example if i click on the card which is showing blocked Teams number then after clicking list should show only blocked Teams  similar with  all Teams
+for example if i click on the card which is showing blocked Managers number then after clicking list should show only blocked Managers  similar with  all Managers
 
 At top there is a button named Create Link
-On click of this button it should open popup and there must be heading Create register link for Teams
+On click of this button it should open popup and there must be heading Create register link for Managers
 below that there should be List for how many time link will be active
 like 1hour , 3hour, 6hour ,12 hour , 1 day , 1month
 and below there should be create link 
@@ -56,18 +61,19 @@ and below there should be create link
 on click of create link button
 it should hide list and show that link with button to copy 
 
-and that link must contain form to register Teams by themsalves 
+and that link must contain form to register Managers by themsalves 
 keep fields manddatory 
 fields
 
-- tt_id (PK, String, starts with "TT...")Automatic generation.
-- name (String)
-- password (String)
-- age (Integer)
-- gender (String)
-- kkfi_number
-- phone (String)
-- email (String, Unique)
+manager_id (PK, String, starts with "TT...")Automatic generation.
+name (String)
+age (Integer)
+gender (String)
+kkfi_number (String, Unique)
+phone (String)
+email (String, Unique)
+password_hash (String)
+address (String)
 
 
 

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body{font-family:Arial, sans-serif;background:#f3f4f6;padding:40px;margin:0}
+    .card{max-width:640px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 20px 40px rgba(15,23,42,.08)}
+    h2{color:#1f2937;margin-top:0}
+    label{display:block;margin:16px 0 6px 0;font-weight:600;color:#1f2937}
+    input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;font-size:14px}
+    input:required,select:required{border-color:#ef4444}
+    .button-container{text-align:right;margin-top:20px}
+    .button-primary{background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .button-primary:hover{background:#1d4ed8}
+    .success-message{background:#dcfce7;border:1px solid #86efac;color:#166534;padding:16px;border-radius:8px;margin-bottom:20px;display:none}
+    .error-message{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:16px;border-radius:8px;margin-bottom:20px;display:none}
+    .form-group{margin-bottom:16px}
+    .required{color:#ef4444}
+    .loading{color:#666;font-size:14px}
+  </style>
+  <script>
+    let tournaments = [];
+    let managers = [];
+
+    async function loadData(){
+      try {
+        // Load tournaments
+        const tourRes = await fetch('/api/tournaments');
+        const tourData = await tourRes.json();
+        tournaments = Array.isArray(tourData) ? tourData : [];
+        
+        // Load managers
+        const mgrRes = await fetch('/api/managers');
+        const mgrData = await mgrRes.json();
+        managers = mgrData.managers || [];
+        
+        // Populate tournament dropdown
+        const tourSelect = document.getElementById('tournament_id');
+        tourSelect.innerHTML = '<option value="">Select Tournament</option>';
+        tournaments.forEach(tour => {
+          const opt = document.createElement('option');
+          opt.value = tour.tournament_id;
+          opt.textContent = tour.name + ' (' + tour.status + ')';
+          tourSelect.appendChild(opt);
+        });
+        
+        // Populate manager dropdown
+        const mgrSelect = document.getElementById('manager_id');
+        mgrSelect.innerHTML = '<option value="">Select Manager</option>';
+        managers.forEach(mgr => {
+          const opt = document.createElement('option');
+          opt.value = mgr.manager_id;
+          opt.textContent = mgr.name;
+          mgrSelect.appendChild(opt);
+        });
+      } catch(err) {
+        showError('Failed to load data: ' + err.message);
+      }
+    }
+
+    async function submitReg(e){
+      e.preventDefault();
+      const token = new URLSearchParams(location.search).get('token');
+      if(!token){
+        showError('Invalid registration link');
+        return;
+      }
+      const data = {
+        team_name: document.getElementById('team_name').value.trim(),
+        tournament_id: document.getElementById('tournament_id').value,
+        address: document.getElementById('address').value.trim(),
+        manager_id: document.getElementById('manager_id').value,
+      };
+      // Validate all fields are filled
+      if(!data.team_name||!data.tournament_id||!data.address||!data.manager_id){
+        showError('All fields are mandatory');
+        return;
+      }
+      const res = await fetch('/register/team?token=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+      });
+      const body = await res.json();
+      if (!res.ok) { 
+        showError(body.error || 'Registration failed'); 
+        return; 
+      }
+      showSuccess(body.message || 'Team registered successfully!');
+      document.getElementById('registration-form').reset();
+      setTimeout(() => { window.location.href = '/'; }, 2000);
+    }
+    function showError(msg){
+      const errorEl = document.getElementById('error-message');
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+      document.getElementById('success-message').style.display = 'none';
+    }
+    function showSuccess(msg){
+      const successEl = document.getElementById('success-message');
+      successEl.textContent = msg;
+      successEl.style.display = 'block';
+      document.getElementById('error-message').style.display = 'none';
+    }
+    window.addEventListener('load', loadData);
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>Team Registration</h2>
+    <div id="success-message" class="success-message"></div>
+    <div id="error-message" class="error-message"></div>
+    <form onsubmit="submitReg(event)" id="registration-form">
+      <div class="form-group">
+        <label>Team Name <span class="required">*</span><input id="team_name" required></label>
+      </div>
+      <div class="form-group">
+        <label>Tournament <span class="required">*</span><select id="tournament_id" required><option value="">Loading tournaments...</option></select></label>
+      </div>
+      <div class="form-group">
+        <label>Address <span class="required">*</span><input id="address" required></label>
+      </div>
+      <div class="form-group">
+        <label>Manager <span class="required">*</span><select id="manager_id" required><option value="">Loading managers...</option></select></label>
+      </div>
+      <div class="button-container"><button class="button-primary" type="submit">Register Team</button></div>
+    </form>
+  </div>
+</body>
+</html>

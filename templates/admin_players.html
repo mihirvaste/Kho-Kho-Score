@@ -3,19 +3,298 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Players</title>
-  <style>body{font-family:Arial, sans-serif;margin:40px}h1{color:#111827}</style>
+  <title>{{ title }}</title>
+  <style>
+    body {margin:0; font-family:Arial, sans-serif; background:#f3f4f6;}
+    .layout {display:flex; min-height:100vh;}
+    .sidebar {width:260px; background:#111827; color:#f8fafc; display:flex; flex-direction:column;}
+    .sidebar .header {padding:24px 20px; font-size:1.1rem; font-weight:700; border-bottom:1px solid rgba(255,255,255,.12);}
+    .sidebar nav {flex:1; padding:12px 0;}
+    .sidebar a, .sidebar button {width:100%; text-align:left; background:none; border:none; color:inherit; padding:14px 22px; cursor:pointer; font-size:0.95rem; display:block}
+    .main {flex:1; display:flex; flex-direction:column;}
+    .topbar {display:flex; justify-content:space-between; align-items:center; padding:18px 26px; background:#fff; border-bottom:1px solid #e5e7eb;}
+    .content {padding:26px; flex:1;}
+    .page-header {display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;}
+    .button-primary {background:#2563eb; color:#fff; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; font-weight:700;}
+    .stats-grid {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-bottom:24px;}
+    .card {background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:20px; cursor:pointer;}
+    .card:hover {box-shadow:0 10px 20px rgba(0,0,0,.05);}
+    .search-bar {display:flex; gap:12px; margin-bottom:18px;}
+    .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden; overflow-x:auto;}
+    table {width:100%; border-collapse:collapse;}
+    thead {background:#f9fafb;}
+    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem; white-space:nowrap;}
+    .actions button {margin-right:6px; background:none; border:1px solid #d1d5db; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:0.9rem;}
+    .actions button:hover {background:#f3f4f6;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:1000;}
+    .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
+    .hidden {display:none;}
+    .notification {position:fixed; top:20px; right:20px; padding:16px 20px; border-radius:10px; color:#fff; z-index:1001; min-width:300px; display:none; box-shadow:0 4px 12px rgba(0,0,0,.15);}
+    .notification.success {background:#10b981;}
+    .notification.error {background:#ef4444;}
+    .notification.show {display:block; animation:slideIn 0.3s ease-out;}
+    @keyframes slideIn {from {transform:translateX(400px); opacity:0;} to {transform:translateX(0); opacity:1;}}
+    .confirm-dialog {position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:1001;}
+    .confirm-modal {background:#fff; border-radius:12px; padding:24px; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,.2);}
+    .confirm-modal h3 {margin-top:0; color:#111827;}
+    .confirm-modal .actions {display:flex; gap:12px; justify-content:flex-end; margin-top:24px;}
+    .confirm-modal button {padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:600;}
+    .confirm-modal .btn-cancel {background:#e5e7eb; color:#111827;}
+    .confirm-modal .btn-confirm {background:#ef4444; color:#fff;}
+  </style>
+  <script>
+    const playerState = {blocked: null, q: '', page: 1, pageSize: 6};
+    let confirmCallback = null;
+
+    function showNotification(message, type = 'success') {
+      const notif = document.getElementById('notification');
+      notif.textContent = message;
+      notif.className = `notification ${type} show`;
+      setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    function showConfirmDialog(message, callback) {
+      const dialog = document.getElementById('confirm-dialog');
+      document.getElementById('confirm-message').textContent = message;
+      dialog.style.display = 'flex';
+      confirmCallback = callback;
+    }
+
+    function confirmYes() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      if (confirmCallback) confirmCallback();
+      confirmCallback = null;
+    }
+
+    function confirmNo() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      confirmCallback = null;
+    }
+
+    function loadPlayerStats(){
+      fetch('/api/players/stats').then(r => r.json()).then(s => {
+        document.getElementById('all-player-count').textContent = s.total;
+        document.getElementById('blocked-player-count').textContent = s.blocked;
+      });
+    }
+
+    function renderPagination(total, current, perPage){
+      const container = document.getElementById('player-pagination');
+      container.innerHTML = '';
+      const totalPages = Math.max(1, Math.ceil(total / perPage));
+      function btn(label, page, disabled){
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.disabled = !!disabled;
+        b.onclick = () => {playerState.page = page; loadPlayers();};
+        b.style.padding = '8px 10px';
+        return b;
+      }
+      container.appendChild(btn('« Prev', Math.max(1, current - 1), current <= 1));
+      const start = Math.max(1, current - 3);
+      const end = Math.min(totalPages, start + 6);
+      for(let p = start; p <= end; p++){
+        const b = document.createElement('button');
+        b.textContent = p;
+        if(p === current){ b.style.fontWeight = '700'; b.disabled = true; }
+        b.onclick = (() => { const page = p; return () => {playerState.page = page; loadPlayers();}; })();
+        b.style.padding = '8px 10px';
+        container.appendChild(b);
+      }
+      container.appendChild(btn('Next »', Math.min(totalPages, current + 1), current >= totalPages));
+    }
+
+    function loadPlayers(){
+      const params = new URLSearchParams();
+      if(playerState.blocked !== null) params.set('blocked', playerState.blocked ? '1' : '0');
+      if(playerState.q) params.set('q', playerState.q);
+      params.set('page', playerState.page);
+      params.set('page_size', playerState.pageSize);
+      fetch('/api/players?' + params).then(r => r.json()).then(d => {
+        const tbody = document.getElementById('player-body');
+        tbody.innerHTML = '';
+        d.players.forEach(p => {
+          const tr = document.createElement('tr');
+          const cols = [p.player_id || '-', p.player_name || '-', p.chest_number || '-', p.team_name || '-', p.team_id || '-', p.tournament_id || '-', p.tournament_name || '-', p.manager_name || '-', p.manager_phone || '-', p.kkfi_number || '-'];
+          cols.forEach(c => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+          const actionTd = document.createElement('td'); actionTd.className = 'actions';
+          const blockBtn = document.createElement('button'); blockBtn.textContent = p.blocked ? 'Unblock' : 'Block'; blockBtn.addEventListener('click', () => toggleBlock(p.player_id, !p.blocked, p.player_name));
+          const editBtn = document.createElement('button'); editBtn.textContent = 'Edit'; editBtn.addEventListener('click', () => openEdit(p.player_id));
+          const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.addEventListener('click', () => confirmDelete(p.player_id, p.player_name));
+          const resetBtn = document.createElement('button'); resetBtn.textContent = 'Reset Pwd'; resetBtn.addEventListener('click', () => sendReset(p.player_id, p.player_name));
+          [blockBtn, editBtn, delBtn, resetBtn].forEach(b => { b.style.marginRight = '6px'; actionTd.appendChild(b); });
+          tr.appendChild(actionTd);
+          tbody.appendChild(tr);
+        });
+        renderPagination(d.total, playerState.page, playerState.pageSize);
+      });
+    }
+
+    function setPlayerFilter(blocked){ playerState.blocked = blocked; playerState.page = 1; loadPlayers(); }
+
+    async function loadPlayerSelectOptions(){
+      const teamSelect = document.getElementById('player-team');
+      const managerSelect = document.getElementById('player-manager');
+      teamSelect.innerHTML = '<option value="">Select team</option>';
+      managerSelect.innerHTML = '<option value="">Select manager</option>';
+
+      try {
+        const teamRes = await fetch('/api/teams');
+        if(teamRes.ok){
+          const data = await teamRes.json();
+          (data.teams || []).forEach(team => {
+            const option = document.createElement('option');
+            option.value = team.team_id;
+            option.textContent = team.team_name || team.team_id;
+            teamSelect.appendChild(option);
+          });
+        }
+      } catch (err) { console.error('Unable to load teams', err); }
+
+      try {
+        const managerRes = await fetch('/api/managers');
+        if(managerRes.ok){
+          const data = await managerRes.json();
+          (data.managers || []).forEach(manager => {
+            const option = document.createElement('option');
+            option.value = manager.manager_id;
+            option.textContent = manager.name || manager.manager_id;
+            managerSelect.appendChild(option);
+          });
+        }
+      } catch (err) { console.error('Unable to load managers', err); }
+    }
+
+    function openAdd(){
+      document.getElementById('player-form').reset();
+      document.getElementById('player-id-row').classList.add('hidden');
+      loadPlayerSelectOptions().then(() => {
+        document.getElementById('player-modal-backdrop').style.display = 'flex';
+        document.getElementById('player-modal-title').textContent = 'Add Player';
+        document.getElementById('player-manager').disabled = false;
+      });
+    }
+
+    function autoSelectManagerForTeam(){
+      const teamId = document.getElementById('player-team').value;
+      const managerSelect = document.getElementById('player-manager');
+      if(!teamId){
+        managerSelect.value = '';
+        managerSelect.disabled = false;
+        return;
+      }
+      managerSelect.disabled = true;
+      fetch('/api/teams').then(r => r.json()).then(data => {
+        const team = (data.teams || []).find(item => item.team_id === teamId);
+        if(team && team.manager_id){
+          managerSelect.value = team.manager_id;
+        }
+      });
+    }
+
+    function openEdit(id){
+      loadPlayerSelectOptions().then(() => {
+        fetch('/api/players/' + id).then(r => r.json()).then(player => {
+          document.getElementById('player-id-row').classList.remove('hidden');
+          document.getElementById('player-id').value = player.player_id || '';
+          document.getElementById('player-team').value = player.team_id || '';
+          document.getElementById('player-name').value = player.player_name || '';
+          document.getElementById('player-kkfi-number').value = player.kkfi_number || '';
+          document.getElementById('player-chest-number').value = player.chest_number || '';
+          document.getElementById('player-document-url').value = player.document_url || '';
+          document.getElementById('player-manager').value = player.manager_id || '';
+          document.getElementById('player-modal-backdrop').style.display = 'flex';
+          document.getElementById('player-modal-title').textContent = 'Edit Player';
+          document.getElementById('player-manager').disabled = true;
+        }).catch(err => showNotification('Failed to load player data', 'error'));
+      });
+    }
+
+    function confirmDelete(id, name){
+      showConfirmDialog(`Are you sure you want to delete player "${name}"?`, () => {
+        fetch('/api/players/' + id, {method: 'DELETE'}).then(r => {if(r.ok) { showNotification('Player deleted successfully', 'success'); loadPlayerStats(); loadPlayers(); } else showNotification('Failed to delete', 'error');}).catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
+    }
+
+    function toggleBlock(id, block, name){
+      const action = block ? 'block' : 'unblock';
+      showConfirmDialog(`Are you sure you want to ${action} "${name}"?`, () => {
+        fetch('/api/players/' + id + '/block', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({blocked: block})}).then(r => {if(r.ok) { showNotification(`Player ${action}ed successfully`, 'success'); loadPlayerStats(); loadPlayers(); } else showNotification('Failed to ' + action, 'error');}).catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
+    }
+
+    function sendReset(id, name){
+      showConfirmDialog(`Send password reset link for "${name}"?`, () => {
+        fetch('/api/players/' + id + '/reset_password', {method: 'POST'}).then(r => r.json()).then(d => {showNotification('Reset link sent successfully! Token: ' + d.token.substring(0, 10) + '...', 'success');}).catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
+    }
+
+    async function savePlayer(e){
+      e.preventDefault();
+      const id = document.getElementById('player-id').value;
+      const data = {
+        team_id: document.getElementById('player-team').value || null,
+        player_name: document.getElementById('player-name').value.trim(),
+        kkfi_number: document.getElementById('player-kkfi-number').value.trim(),
+        chest_number: document.getElementById('player-chest-number').value ? parseInt(document.getElementById('player-chest-number').value, 10) : null,
+        document_url: document.getElementById('player-document-url').value.trim(),
+        manager_id: document.getElementById('player-manager').value || null,
+      };
+      if(!id){ data.password = document.getElementById('player-password').value; if(!data.password) {showNotification('Password is required for new players', 'error'); return;} }
+      if(!data.player_name){ showNotification('Player name is required', 'error'); return; }
+      try {
+        let res;
+        if(!id){
+          res = await fetch('/api/players', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+        } else {
+          res = await fetch('/api/players/' + id, {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+        }
+        const body = await res.json().catch(() => null);
+        if(!res.ok){
+          showNotification('Failed to save: ' + (body && (body.error || body.detail) ? body.error : res.statusText), 'error');
+          return;
+        }
+        showNotification(id ? 'Player updated successfully' : 'Player created successfully', 'success');
+        closePlayerModal();
+        loadPlayerStats();
+        loadPlayers();
+      } catch(err){ showNotification('Network or server error: ' + err.message, 'error'); }
+    }
+
+    function closePlayerModal(){ document.getElementById('player-modal-backdrop').style.display = 'none'; }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPlayerStats();
+      loadPlayers();
+      document.getElementById('player-search').addEventListener('input', e => {playerState.q = e.target.value; playerState.page = 1; loadPlayers();});
+      document.getElementById('add-player').addEventListener('click', openAdd);
+      document.getElementById('player-form').addEventListener('submit', savePlayer);
+      document.getElementById('player-close-modal').addEventListener('click', closePlayerModal);
+      document.getElementById('player-team').addEventListener('change', autoSelectManagerForTeam);
+      document.getElementById('confirm-btn-yes').addEventListener('click', confirmYes);
+      document.getElementById('confirm-btn-no').addEventListener('click', confirmNo);
+    });
+  </script>
 </head>
 <body>
+  <div id="notification" class="notification"></div>
+  <div id="confirm-dialog" class="confirm-dialog">
+    <div class="confirm-modal">
+      <h3 id="confirm-message"></h3>
+      <div class="actions">
+        <button class="btn-cancel" id="confirm-btn-no">No</button>
+        <button class="btn-confirm" id="confirm-btn-yes">Yes</button>
+      </div>
+    </div>
+  </div>
   <div class="layout">
     <!-- include: partials/sidebar.html -->
     <section class="main">
       <!-- include: partials/topbar.html -->
-      <div class="content">
-        <h1>Players</h1>
-        <p>This is the Players page (placeholder).</p>
-      </div>
+      <!-- include: partials/players_content.html -->
     </section>
   </div>
+  <!-- include: partials/players_modals.html -->
 </body>
 </html>

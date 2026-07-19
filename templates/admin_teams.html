@@ -21,17 +21,56 @@
     .card:hover {box-shadow:0 10px 20px rgba(0,0,0,.05);}
     .search-bar {display:flex; gap:12px; margin-bottom:18px;}
     .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
-    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden; overflow-x:auto;}
     table {width:100%; border-collapse:collapse;}
     thead {background:#f9fafb;}
-    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem;}
-    .actions button {margin-right:8px; background:none; border:1px solid #d1d5db; padding:8px 12px; border-radius:10px; cursor:pointer;}
-    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px;}
+    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem; white-space:nowrap;}
+    .actions button {margin-right:6px; background:none; border:1px solid #d1d5db; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:0.9rem;}
+    .actions button:hover {background:#f3f4f6;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:1000;}
     .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
     .hidden {display:none;}
+    .notification {position:fixed; top:20px; right:20px; padding:16px 20px; border-radius:10px; color:#fff; z-index:1001; min-width:300px; display:none; box-shadow:0 4px 12px rgba(0,0,0,.15);}
+    .notification.success {background:#10b981;}
+    .notification.error {background:#ef4444;}
+    .notification.show {display:block; animation:slideIn 0.3s ease-out;}
+    @keyframes slideIn {from {transform:translateX(400px); opacity:0;} to {transform:translateX(0); opacity:1;}}
+    .confirm-dialog {position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:1001;}
+    .confirm-modal {background:#fff; border-radius:12px; padding:24px; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,.2);}
+    .confirm-modal h3 {margin-top:0; color:#111827;}
+    .confirm-modal .actions {display:flex; gap:12px; justify-content:flex-end; margin-top:24px;}
+    .confirm-modal button {padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:600;}
+    .confirm-modal .btn-cancel {background:#e5e7eb; color:#111827;}
+    .confirm-modal .btn-confirm {background:#ef4444; color:#fff;}
   </style>
   <script>
     const teamState = {blocked: null, q: '', page: 1, pageSize: 6};
+    let confirmCallback = null;
+
+    function showNotification(message, type = 'success') {
+      const notif = document.getElementById('notification');
+      notif.textContent = message;
+      notif.className = `notification ${type} show`;
+      setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    function showConfirmDialog(message, callback) {
+      const dialog = document.getElementById('confirm-dialog');
+      document.getElementById('confirm-message').textContent = message;
+      dialog.style.display = 'flex';
+      confirmCallback = callback;
+    }
+
+    function confirmYes() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      if (confirmCallback) confirmCallback();
+      confirmCallback = null;
+    }
+
+    function confirmNo() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      confirmCallback = null;
+    }
 
     function loadTeamStats(){
       fetch('/api/teams/stats')
@@ -81,13 +120,13 @@
           tbody.innerHTML = '';
           d.teams.forEach(team => {
             const tr = document.createElement('tr');
-            const cols = [team.team_id, team.team_name, team.tournament_id || '', team.tournament_name || '', team.address || '', team.manager_id || ''];
+            const cols = [team.team_id, team.team_name, team.tournament_id || '-', team.tournament_name || '-', team.address || '-', team.manager_name || '-', team.manager_phone || '-', team.kkfi_number || '-'];
             cols.forEach(c => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
             const actionTd = document.createElement('td'); actionTd.className = 'actions';
+            const blockBtn = document.createElement('button'); blockBtn.textContent = team.blocked ? 'Unblock' : 'Block'; blockBtn.addEventListener('click', () => toggleBlock(team.team_id, !team.blocked, team.team_name));
             const editBtn = document.createElement('button'); editBtn.textContent = 'Edit'; editBtn.addEventListener('click', () => openEdit(team.team_id));
-            const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.addEventListener('click', () => confirmDelete(team.team_id));
-            const blockBtn = document.createElement('button'); blockBtn.textContent = team.blocked ? 'Unblock' : 'Block'; blockBtn.addEventListener('click', () => toggleBlock(team.team_id, !team.blocked));
-            [blockBtn, editBtn, delBtn].forEach(b => { b.style.marginRight = '8px'; actionTd.appendChild(b); });
+            const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.addEventListener('click', () => confirmDelete(team.team_id, team.team_name));
+            [blockBtn, editBtn, delBtn].forEach(b => { b.style.marginRight = '6px'; actionTd.appendChild(b); });
             tr.appendChild(actionTd);
             tbody.appendChild(tr);
           });
@@ -160,20 +199,26 @@
             document.getElementById('team-manager').value = team.manager_id || '';
             document.getElementById('team-modal-backdrop').style.display = 'flex';
             document.getElementById('team-modal-title').textContent = 'Edit Team';
-          });
+          })
+          .catch(err => showNotification('Failed to load team data', 'error'));
       });
     }
 
-    function confirmDelete(id){
-      if(!confirm('Are you sure you want to delete this team?')) return;
-      fetch('/api/teams/' + id, {method: 'DELETE'})
-        .then(() => {loadTeamStats(); loadTeams();});
+    function confirmDelete(id, name){
+      showConfirmDialog(`Are you sure you want to delete team "${name}"?`, () => {
+        fetch('/api/teams/' + id, {method: 'DELETE'})
+          .then(r => {if(r.ok) { showNotification('Team deleted successfully', 'success'); loadTeamStats(); loadTeams(); } else showNotification('Failed to delete', 'error');})
+          .catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
     }
 
-    function toggleBlock(id, block){
-      if(!confirm('Are you sure you want to ' + (block ? 'block' : 'unblock') + ' this team?')) return;
-      fetch('/api/teams/' + id + '/block', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({blocked: block})})
-        .then(() => {loadTeamStats(); loadTeams();});
+    function toggleBlock(id, block, name){
+      const action = block ? 'block' : 'unblock';
+      showConfirmDialog(`Are you sure you want to ${action} "${name}"?`, () => {
+        fetch('/api/teams/' + id + '/block', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({blocked: block})})
+          .then(r => {if(r.ok) { showNotification(`Team ${action}ed successfully`, 'success'); loadTeamStats(); loadTeams(); } else showNotification('Failed to ' + action, 'error');})
+          .catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
     }
 
     async function saveTeam(e){
@@ -185,7 +230,7 @@
         address: document.getElementById('team-address').value.trim(),
         manager_id: document.getElementById('team-manager').value || null,
       };
-      if(!data.team_name){ alert('Team name is required'); return; }
+      if(!data.team_name){ showNotification('Team name is required', 'error'); return; }
       try {
         let res;
         if(!id){
@@ -195,14 +240,15 @@
         }
         const body = await res.json().catch(() => null);
         if(!res.ok){
-          alert('Failed to save: ' + (body && (body.error || body.detail) ? (body.error + ' - ' + (body.detail || '')) : res.statusText));
+          showNotification('Failed to save: ' + (body && (body.error || body.detail) ? body.error : res.statusText), 'error');
           return;
         }
+        showNotification(id ? 'Team updated successfully' : 'Team created successfully', 'success');
         closeTeamModal();
         loadTeamStats();
         loadTeams();
       } catch(err){
-        alert('Network or server error: ' + err.message);
+        showNotification('Error: ' + err.message, 'error');
       }
     }
 
@@ -218,7 +264,7 @@
 
     function createTeamLink(){
       const sel = document.querySelector('input[name=team_link_ttl]:checked');
-      if(!sel){ alert('Select a duration'); return; }
+      if(!sel){ showNotification('Please select a duration', 'error'); return; }
       const seconds = parseInt(sel.value);
       fetch('/api/teams/links', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({expires_seconds: seconds})})
         .then(r => r.json())
@@ -226,7 +272,8 @@
           document.getElementById('team-generated-link').textContent = d.link;
           document.getElementById('team-link-list').classList.add('hidden');
           document.getElementById('team-link-result').classList.remove('hidden');
-        });
+        })
+        .catch(err => showNotification('Error: ' + err.message, 'error'));
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -239,10 +286,22 @@
       document.getElementById('team-close-modal').addEventListener('click', closeTeamModal);
       document.getElementById('team-close-link').addEventListener('click', () => {document.getElementById('team-link-backdrop').style.display = 'none';});
       document.getElementById('team-close-link-2').addEventListener('click', () => {document.getElementById('team-link-backdrop').style.display = 'none';});
+      document.getElementById('confirm-btn-yes').addEventListener('click', confirmYes);
+      document.getElementById('confirm-btn-no').addEventListener('click', confirmNo);
     });
   </script>
 </head>
 <body>
+  <div id="notification" class="notification"></div>
+  <div id="confirm-dialog" class="confirm-dialog">
+    <div class="confirm-modal">
+      <h3 id="confirm-message"></h3>
+      <div class="actions">
+        <button class="btn-cancel" id="confirm-btn-no">No</button>
+        <button class="btn-confirm" id="confirm-btn-yes">Yes</button>
+      </div>
+    </div>
+  </div>
   <div class="layout">
     <!-- include: partials/sidebar.html -->
     <section class="main">

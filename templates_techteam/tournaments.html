@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; }
+    .sidebar .brand { padding: 22px 20px; font-size: 1.05rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    .sidebar nav { flex: 1; padding: 10px 0; }
+    .sidebar a { display: block; color: inherit; text-decoration: none; padding: 12px 20px; }
+    .sidebar a:hover { background: rgba(255,255,255,0.08); }
+    .logout { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.12); }
+    .main { flex: 1; padding: 24px; }
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 20px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .toolbar .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-top: 16px; }
+    .tournament-card { border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; background: #fafafa; }
+    .tournament-card h3 { margin: 0 0 8px; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    button { border: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; background: #0369a1; color: white; }
+    button.secondary { background: #10b981; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+    .modal { background: #fff; border-radius: 18px; width: 100%; max-width: 560px; max-height: 90vh; overflow: auto; padding: 24px; }
+    .modal form { display: grid; gap: 12px; }
+    .modal label { display: flex; flex-direction: column; font-weight: 700; color: #111827; gap: 6px; }
+    .modal input, .modal select { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; }
+    .modal .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Tech Team Panel</div>
+      <nav>
+        <a href="/home">Home</a>
+        <a href="/umpires">Umpire</a>
+        <a href="/managers">Manager</a>
+        <a href="/teams">Teams</a>
+        <a href="/players">Players</a>
+        <a href="/tournaments">Tournament Matches</a>
+      </nav>
+      <div class="logout"><a href="/logout">Logout</a></div>
+    </aside>
+    <section class="main">
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <h1>Tournament Matches</h1>
+            <p>Open any tournament to manage its schedule and match progression.</p>
+          </div>
+          <div class="actions">
+            <button id="open-tournament-modal">Create Tournament</button>
+            <button class="secondary" id="open-tournament-link">Create link</button>
+          </div>
+        </div>
+        <div id="tournaments" class="grid"></div>
+      </div>
+    </section>
+  </div>
+  <div id="tournament-modal-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h2>Create Tournament</h2>
+      <form id="tournament-form">
+        <label>Name<input id="tournament-name" required></label>
+        <label>Start Date<input id="tournament-start-date" type="date" required></label>
+        <label>End Date<input id="tournament-end-date" type="date" required></label>
+        <label>Status<input id="tournament-status" value="UPCOMING"></label>
+        <label>Tournament For<input id="tournament-for"></label>
+        <div class="actions"><button type="button" id="close-tournament-modal">Cancel</button><button type="submit">Save</button></div>
+      </form>
+    </div>
+  </div>
+  <div id="tournament-link-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h2>Create register link for Tournament</h2>
+      <div id="tournament-link-list">
+        <p>Select how long the link will be active:</p>
+        <label><input type="radio" name="tournament_link_ttl" value="3600"> 1 hour</label>
+        <label><input type="radio" name="tournament_link_ttl" value="10800"> 3 hours</label>
+        <label><input type="radio" name="tournament_link_ttl" value="21600"> 6 hours</label>
+        <label><input type="radio" name="tournament_link_ttl" value="43200"> 12 hours</label>
+        <label><input type="radio" name="tournament_link_ttl" value="86400"> 1 day</label>
+        <label><input type="radio" name="tournament_link_ttl" value="2592000"> 1 month</label>
+        <div class="actions"><button type="button" onclick="createTournamentLink()">Create link</button><button type="button" id="close-tournament-link">Cancel</button></div>
+      </div>
+      <div id="tournament-link-result" class="hidden">
+        <p>Link created:</p>
+        <pre id="tournament-generated-link" style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap"></pre>
+        <div class="actions"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('tournament-generated-link').textContent)">Copy</button><button type="button" id="close-tournament-link-2" onclick="document.getElementById('tournament-link-backdrop').style.display='none'">Close</button></div>
+      </div>
+    </div>
+  </div>
+<script>
+function loadTournaments() {
+  fetch('/api/tournaments').then(res => res.json()).then(data => {
+    const container = document.getElementById('tournaments');
+    container.innerHTML = '';
+    data.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'tournament-card';
+      card.innerHTML = `<h3>${item.name}</h3><div>${item.start_date} → ${item.end_date}</div><div>Status: ${item.status}</div><div class="actions"><button onclick="location.href='/tournaments/${item.tournament_id}'">View Matches</button></div>`;
+      container.appendChild(card);
+    });
+  });
+}
+function createTournamentLink(){
+  const sel = document.querySelector('input[name=tournament_link_ttl]:checked');
+  if(!sel){ alert('Select a duration'); return; }
+  const seconds = parseInt(sel.value, 10);
+  fetch('/api/tournaments/links', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({expires_seconds: seconds})}).then(r=>r.json()).then(d=>{
+    document.getElementById('tournament-generated-link').textContent = d.link;
+    document.getElementById('tournament-link-list').classList.add('hidden');
+    document.getElementById('tournament-link-result').classList.remove('hidden');
+  });
+}
+document.getElementById('open-tournament-modal').addEventListener('click', () => document.getElementById('tournament-modal-backdrop').style.display = 'flex');
+document.getElementById('close-tournament-modal').addEventListener('click', () => document.getElementById('tournament-modal-backdrop').style.display = 'none');
+document.getElementById('open-tournament-link').addEventListener('click', () => {
+  document.getElementById('tournament-link-list').classList.remove('hidden');
+  document.getElementById('tournament-link-result').classList.add('hidden');
+  document.getElementById('tournament-link-backdrop').style.display = 'flex';
+});
+document.getElementById('close-tournament-link').addEventListener('click', () => document.getElementById('tournament-link-backdrop').style.display = 'none');
+document.getElementById('tournament-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  const payload = {
+    name: document.getElementById('tournament-name').value,
+    start_date: document.getElementById('tournament-start-date').value,
+    end_date: document.getElementById('tournament-end-date').value,
+    status: document.getElementById('tournament-status').value,
+    tournament_for: document.getElementById('tournament-for').value
+  };
+  fetch('/api/tournaments', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)}).then(()=>{this.reset(); document.getElementById('tournament-modal-backdrop').style.display='none'; loadTournaments();});
+});
+loadTournaments();
+</script>
+</body>
+</html>

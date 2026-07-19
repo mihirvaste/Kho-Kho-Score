@@ -1,0 +1,144 @@
+Now we are working on tech team pannel
+so whatever you do is for tech team should go inside the templates_techteam folder
+but keep backend inside the same folder
+
+Now there are few things which are similar as admin pannel
+First is login page which will be connected to the Technical_Teams table 
+Login
+    tt_id (PK, String, starts with "TT...") or email (String, Unique)
+    password_hash (String)
+
+After login it should go to Home page
+
+Home page should look similar like Admin Home page but slight change in that
+inside there should be heading bar similar as Admin but tech team heading on it
+left side bar with links to all pages of tech team pannel
+    home
+    Umpires 
+    Managers
+    Players
+    Tournament Matches
+    Logout 
+
+
+Umpires will be same as admin pannel umpires
+Managers will be same as admin pannel managers
+Players will be same as admin pannel players
+
+Inside Tournament Matches there should be 4 cards
+All tournaments
+Active Tournaments
+Upcoming tournaments
+Past tournaments
+
+Below these cards there should be list of tournaments coming from db
+and this list must contains:
+Tournaments (Created by SuperAdmin)
+    tournament_id (PK, String, starts with "KT...")
+    name (String)
+    start_date (Date)
+    end_date (Date)
+    Status : reschedule/cancel/active/UPCOMING
+    Tournament_for :(String: "U14", "U18", "U21",”Open”,”Khelo India”,”Ultimate Kho Kho”)
+    Action
+
+
+if user selects Upcoming tournaments card then list should show only upcoming tournaments
+if user selects past tournaments card then list should show only past tournaments
+if user selects all tournaments card then list should show all
+if user selects active tournaments card then list should show
+
+Insite Action there should be Active this tournament, Cancel and Reschedule buttons
+-    if user clicks on cancel button then it will show a pop up with message
+    "Are you sure want to cancel this tournament"and yes no working button be there.
+-   if user clicks on reschedule button then it will show a pop up with message 
+    "Are you sure want to reschedule this tournament" and yes no working button be there. 
+    if user said yes then he should ask for new start_date, end_date for this tournament
+-   if user clicks on active button then it will show a pop up with message 
+    "Are you sure want to make this tournament as active" and yes no working button.
+
+After watching list of Active tournaments 
+if user selects any one of the tournament from list it should redirect to
+Another page named All Matches.
+In that page there should be a the Heading of tournament Name as heaidng. At right side of the heading there should be a button named create Create draws
+At left there should be Card which is showing how many teams has enroll for this tournament
+At right there should be list of all teams names
+on click of single team it will open popup and show all teams details
+1. Team name 
+2. Team Manager
+3. Team Platers list with all detailing come from db.
+
+Below these cards there should be list of matches
+Here is the scheam for matches:
+Matches (Set up by Technical Team)
+    match_id (PK, String, starts with "TM...") Auto generated
+    match_number (Integer) can not be empty
+    tournament_id (FK to Tournaments) Fetched Automatically
+    tournament_id Fetched Automatically
+    group_name (String, e.g., "Pool A" / "Semi-Final") can not be empty
+    team_a_id (FK to Teams) can not be empty
+    team_b_id (FK to Teams) can not be empty
+    match_status (String: "Scheduled", "Live", "Completed") can be empty
+    is_follow_on_enforced (Boolean, Default FALSE) can be empty
+    final_winner_id (FK to Teams, Nullable) can be empty
+    win_type (String: "By Points", "By an Inning", "Minimum Chase Time") can be empty
+    win_margin (String, e.g., "3 Points" / "45 Seconds") can be empty
+    Action
+
+There will be Modify , delete actions to edit particular match
+if user select delete there should be one popup "Are you sure you want to delete this match?" and workign yes no button.
+if user selects modify then there be popup to open and it should show all fields to modify except match_id,tournament_id, tournament_name and there should be save button to save it.
+
+Now after clicking on button called "Create draws" it should redirect to another page 
+And there should be headind of Create draws for {tournament_name}
+Below this there should be 3 tabs
+1. Group stages
+2. Knockout Stages
+3. League
+
+if user is at Group stages
+he has to choose group stages like A,B,C,D,E,F,G,H, I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z and 
+And how many maximum teams should be there in each group.
+after selecting all the details it will show all groups below that then 
+user has to select teams inside group stages 
+like of if user select there will be A,B,C,D 
+group are there and there will be max 4 teams in each 
+i will choose 
+For group A : Team a Team b Team c Team d
+For group B : Team e Team f Team g Team h
+for group C: team i team j team k team l
+for group D: team m team n team o team p
+
+Then you by yourself have to create matches list under each group and then user has to select which umpire will host this match.
+
+After these should seperate matches cretion part 
+first how many matches remaining for ex there are 4 matches remaining
+so for that you need to create 4 list of selected teams and umpires
+group_name= "quater final"
+Match 1: Team b vs Team H umpire: Alokh sharma
+Match 4: Team c vs Team e umpire: Ulka kubar
+Match 3: Team j vs Team p umpire: Ramanujam
+Match 2: Team m vs Team k umpire: Viraj sharma
+two teams and umpire who will host the match
+ 
+
+After this there should be save button to save all the matches into db
+
+
+if user selects Knockout Stages
+
+then directly show 
+first how many matches remaining for ex there are 4 matches remaining
+so for that you need to create 4 list of selected teams and umpires
+group_name= "quater final"
+Match 1: Team b vs Team H umpire: Alokh sharma
+Match 4: Team c vs Team e umpire: Ulka kubar
+Match 3: Team j vs Team p umpire: Ramanujam
+Match 2: Team m vs Team k umpire: Viraj sharma
+two teams and umpire who will host the match
+ 
+
+After this there should be save button to save all the matches into db
+
+Similar with League just like Knockout
+

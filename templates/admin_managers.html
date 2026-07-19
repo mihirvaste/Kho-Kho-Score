@@ -3,19 +3,157 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Managers</title>
-  <style>body{font-family:Arial, sans-serif;margin:40px}h1{color:#111827}</style>
+  <title>{{ title }}</title>
+  <style>
+    body {margin:0; font-family:Arial, sans-serif; background:#f3f4f6;}
+    .layout {display:flex; min-height:100vh;}
+    .sidebar {width:260px; background:#111827; color:#f8fafc; display:flex; flex-direction:column;}
+    .sidebar .header {padding:24px 20px; font-size:1.1rem; font-weight:700; border-bottom:1px solid rgba(255,255,255,.12);}
+    .sidebar nav {flex:1; padding:12px 0;}
+    .sidebar a, .sidebar button {width:100%; text-align:left; background:none; border:none; color:inherit; padding:14px 22px; cursor:pointer; font-size:0.95rem; display:block}
+    .main {flex:1; display:flex; flex-direction:column;}
+    .topbar {display:flex; justify-content:space-between; align-items:center; padding:18px 26px; background:#fff; border-bottom:1px solid #e5e7eb;}
+    .content {padding:26px; flex:1;}
+    .page-header {display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;}
+    .button-primary {background:#2563eb; color:#fff; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; font-weight:700;}
+    .stats-grid {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-bottom:24px;}
+    .card {background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:20px; cursor:pointer;}
+    .search-bar {display:flex; gap:12px; margin-bottom:18px;}
+    .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden; overflow-x:auto;}
+    table {width:100%; border-collapse:collapse;}
+    thead {background:#f9fafb;}
+    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem; white-space:nowrap;}
+    .actions button {margin-right:6px; background:none; border:1px solid #d1d5db; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:0.9rem;}
+    .actions button:hover {background:#f3f4f6;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:1000;}
+    .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
+    .hidden {display:none}
+    .notification {position:fixed; top:20px; right:20px; padding:16px 20px; border-radius:10px; color:#fff; z-index:1001; min-width:300px; display:none; box-shadow:0 4px 12px rgba(0,0,0,.15);}
+    .notification.success {background:#10b981;}
+    .notification.error {background:#ef4444;}
+    .notification.show {display:block; animation:slideIn 0.3s ease-out;}
+    @keyframes slideIn {from {transform:translateX(400px); opacity:0;} to {transform:translateX(0); opacity:1;}}
+    .confirm-dialog {position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:1001;}
+    .confirm-modal {background:#fff; border-radius:12px; padding:24px; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,.2);}
+    .confirm-modal h3 {margin-top:0; color:#111827;}
+    .confirm-modal .actions {display:flex; gap:12px; justify-content:flex-end; margin-top:24px;}
+    .confirm-modal button {padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:600;}
+    .confirm-modal .btn-cancel {background:#e5e7eb; color:#111827;}
+    .confirm-modal .btn-confirm {background:#ef4444; color:#fff;}
+  </style>
+  <script>
+    const managerState = {blocked: null, q: '', page:1, pageSize:6};
+    let confirmCallback = null;
+
+    function showNotification(message, type = 'success') {
+      const notif = document.getElementById('notification');
+      notif.textContent = message;
+      notif.className = `notification ${type} show`;
+      setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    function showConfirmDialog(message, callback) {
+      const dialog = document.getElementById('confirm-dialog');
+      document.getElementById('confirm-message').textContent = message;
+      dialog.style.display = 'flex';
+      confirmCallback = callback;
+    }
+
+    function confirmYes() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      if (confirmCallback) confirmCallback();
+      confirmCallback = null;
+    }
+
+    function confirmNo() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      confirmCallback = null;
+    }
+
+    function loadManagerStats(){fetch('/api/managers/stats').then(r=>r.json()).then(s=>{document.getElementById('manager-all-count').textContent=s.total;document.getElementById('manager-blocked-count').textContent=s.blocked})}
+    function renderManagerPagination(total, current, perPage){
+      const container = document.getElementById('manager-pagination');
+      container.innerHTML = '';
+      const totalPages = Math.max(1, Math.ceil(total / perPage));
+      function addBtn(label, page, disabled){
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.disabled = !!disabled;
+        b.onclick = ()=>{managerState.page = page; loadManagers();};
+        b.style.padding = '8px 10px';
+        container.appendChild(b);
+      }
+      addBtn('« Prev', Math.max(1, current - 1), current <= 1);
+      for(let p=1; p<=totalPages; p++){const b=document.createElement('button');b.textContent=p; if(p===current){b.style.fontWeight='700';b.disabled=true} b.onclick=(()=>{const page=p; return ()=>{managerState.page=page; loadManagers();}})(); b.style.padding='8px 10px'; container.appendChild(b)}
+      addBtn('Next »', Math.min(totalPages, current + 1), current >= totalPages);
+    }
+    function loadManagers(){
+      const params = new URLSearchParams();
+      if(managerState.blocked !== null) params.set('blocked', managerState.blocked ? '1' : '0');
+      if(managerState.q) params.set('q', managerState.q);
+      params.set('page', managerState.page);
+      params.set('page_size', managerState.pageSize);
+      fetch('/api/managers?' + params).then(r=>r.json()).then(d=>{
+        const tbody=document.getElementById('manager-body'); tbody.innerHTML='';
+        d.managers.forEach(m=>{
+          const tr=document.createElement('tr');
+          const cols = [m.manager_id || '-', m.team_name || '-', m.team_id || '-', m.tournament_id || '-', m.tournament_name || '-', m.address || '-', m.name || '-', m.phone || '-', m.kkfi_number || '-'];
+          cols.forEach(c=>{const td=document.createElement('td'); td.textContent = c; tr.appendChild(td)});
+          const actionTd=document.createElement('td'); actionTd.className='actions';
+          const blockBtn=document.createElement('button'); blockBtn.textContent = m.blocked ? 'Unblock' : 'Block'; blockBtn.onclick=()=> toggleManagerBlock(m.manager_id, !m.blocked, m.name);
+          const editBtn=document.createElement('button'); editBtn.textContent='Edit'; editBtn.onclick=()=> openManagerEdit(m.manager_id);
+          const delBtn=document.createElement('button'); delBtn.textContent='Delete'; delBtn.onclick=()=> confirmManagerDelete(m.manager_id, m.name);
+          const resetBtn=document.createElement('button'); resetBtn.textContent='Reset Pwd'; resetBtn.onclick=()=> sendManagerReset(m.manager_id, m.name);
+          [blockBtn, editBtn, delBtn, resetBtn].forEach(b=>{b.style.marginRight='6px'; actionTd.appendChild(b)});
+          tr.appendChild(actionTd);
+          tbody.appendChild(tr);
+        });
+        renderManagerPagination(d.total, managerState.page, managerState.pageSize);
+      });
+    }
+    function setManagerFilter(blocked){managerState.blocked=blocked;managerState.page=1;loadManagers();}
+    function openManagerAdd(){document.getElementById('manager-form').reset();document.getElementById('manager-id-row').classList.add('hidden');document.getElementById('manager-password').value = '';document.getElementById('manager-modal-backdrop').style.display='flex';document.getElementById('manager-modal-title').textContent='Add Manager';}
+    function openManagerEdit(id){fetch('/api/managers/' + id).then(r=>r.json()).then(m=>{document.getElementById('manager-id-row').classList.remove('hidden');document.getElementById('manager-id').value=m.manager_id;document.getElementById('manager-name').value=m.name||'';document.getElementById('manager-age').value=m.age||'';document.getElementById('manager-gender').value=m.gender||'';document.getElementById('manager-kkfi').value=m.kkfi_number||'';document.getElementById('manager-phone').value=m.phone||'';document.getElementById('manager-email').value=m.email||'';document.getElementById('manager-address').value=m.address||'';document.getElementById('manager-password').value='';document.getElementById('manager-modal-backdrop').style.display='flex';document.getElementById('manager-modal-title').textContent='Edit Manager';}).catch(err => showNotification('Failed to load manager data', 'error'))}
+    function confirmManagerDelete(id, name){showConfirmDialog(`Are you sure you want to delete manager "${name}"?`, () => {fetch('/api/managers/' + id,{method:'DELETE'}).then(r=>{if(r.ok){showNotification('Manager deleted successfully', 'success'); loadManagerStats(); loadManagers();} else showNotification('Failed to delete', 'error');}).catch(err => showNotification('Error: ' + err.message, 'error'));})}
+    function toggleManagerBlock(id, blocked, name){const action = blocked ? 'block' : 'unblock'; showConfirmDialog(`Are you sure you want to ${action} "${name}"?`, () => {fetch('/api/managers/' + id + '/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked})}).then(r=>{if(r.ok){showNotification(`Manager ${action}ed successfully`, 'success'); loadManagerStats(); loadManagers();} else showNotification('Failed to ' + action, 'error');}).catch(err => showNotification('Error: ' + err.message, 'error'));})}
+    function sendManagerReset(id, name){showConfirmDialog(`Send password reset link for "${name}"?`, () => {fetch('/api/managers/' + id + '/reset_password', {method:'POST'}).then(r=>r.json()).then(d=>{showNotification('Reset link sent successfully! Token: ' + d.token.substring(0, 10) + '...', 'success');}).catch(err => showNotification('Error: ' + err.message, 'error'));})}
+    async function saveManager(e){
+      e.preventDefault();
+      const id=document.getElementById('manager-id').value;
+      const data={name:document.getElementById('manager-name').value,age:document.getElementById('manager-age').value,gender:document.getElementById('manager-gender').value,kkfi_number:document.getElementById('manager-kkfi').value,phone:document.getElementById('manager-phone').value,email:document.getElementById('manager-email').value,address:document.getElementById('manager-address').value};
+      if(!id){data.password=document.getElementById('manager-password').value; if(!data.password){showNotification('Password is required for new managers', 'error'); return;}}
+      const res=await fetch(id ? '/api/managers/' + id : '/api/managers', {method:id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+      const body=await res.json().catch(()=>null);
+      if(!res.ok){showNotification('Failed to save: ' + (body && (body.error || body.detail) ? body.error : res.statusText), 'error'); return;}
+      showNotification(id ? 'Manager updated successfully' : 'Manager created successfully', 'success');
+      document.getElementById('manager-modal-backdrop').style.display='none';
+      loadManagerStats(); loadManagers();
+    }
+    function createManagerLink(){const sel=document.querySelector('input[name=manager_link_ttl]:checked'); if(!sel){ showNotification('Please select a duration', 'error'); return; } const seconds=parseInt(sel.value); fetch('/api/managers/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expires_seconds:seconds})}).then(r=>r.json()).then(d=>{document.getElementById('manager-generated-link').textContent=d.link; document.getElementById('manager-link-list').classList.add('hidden'); document.getElementById('manager-link-result').classList.remove('hidden');}).catch(err => showNotification('Error: ' + err.message, 'error'));}
+    function openCombinedLinkModal(){document.getElementById('team-players-link-backdrop').style.display='flex'; document.getElementById('team-players-link-list').classList.remove('hidden'); document.getElementById('team-players-link-result').classList.add('hidden');}
+    function createCombinedLink(){const sel=document.querySelector('input[name=team_players_link_ttl]:checked'); if(!sel){ showNotification('Please select a duration', 'error'); return; } const seconds=parseInt(sel.value); fetch('/api/teams/players/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expires_seconds:seconds})}).then(r=>r.json()).then(d=>{document.getElementById('team-players-generated-link').textContent=d.link; document.getElementById('team-players-link-list').classList.add('hidden'); document.getElementById('team-players-link-result').classList.remove('hidden');}).catch(err => showNotification('Error: ' + err.message, 'error'));}
+    window.addEventListener('DOMContentLoaded',()=>{loadManagerStats(); loadManagers(); document.getElementById('manager-search').addEventListener('input',e=>{managerState.q=e.target.value;managerState.page=1;loadManagers();}); document.getElementById('add-manager-button').addEventListener('click', openManagerAdd); document.getElementById('create-manager-link').addEventListener('click', ()=> document.getElementById('manager-link-backdrop').style.display='flex'); document.getElementById('create-team-players-link').addEventListener('click', openCombinedLinkModal); document.getElementById('manager-form').addEventListener('submit', saveManager); document.getElementById('manager-close-modal').addEventListener('click', ()=> document.getElementById('manager-modal-backdrop').style.display='none'); document.getElementById('manager-close-link').addEventListener('click', ()=> document.getElementById('manager-link-backdrop').style.display='none'); document.getElementById('manager-close-link-2').addEventListener('click', ()=> document.getElementById('manager-link-backdrop').style.display='none'); document.getElementById('team-players-close-link').addEventListener('click', ()=> document.getElementById('team-players-link-backdrop').style.display='none'); document.getElementById('team-players-close-link-2').addEventListener('click', ()=> document.getElementById('team-players-link-backdrop').style.display='none'); document.getElementById('confirm-btn-yes').addEventListener('click', confirmYes); document.getElementById('confirm-btn-no').addEventListener('click', confirmNo);});
+  </script>
 </head>
 <body>
+  <div id="notification" class="notification"></div>
+  <div id="confirm-dialog" class="confirm-dialog">
+    <div class="confirm-modal">
+      <h3 id="confirm-message"></h3>
+      <div class="actions">
+        <button class="btn-cancel" id="confirm-btn-no">No</button>
+        <button class="btn-confirm" id="confirm-btn-yes">Yes</button>
+      </div>
+    </div>
+  </div>
   <div class="layout">
     <!-- include: partials/sidebar.html -->
     <section class="main">
       <!-- include: partials/topbar.html -->
-      <div class="content">
-        <h1>Managers</h1>
-        <p>This is the Managers page (placeholder).</p>
-      </div>
+      <!-- include: partials/managers_content.html -->
     </section>
   </div>
+  <!-- include: partials/managers_modals.html -->
 </body>
 </html>

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Team and Players Registration</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f3f4f6;padding:40px}
+    .card{max-width:900px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 20px 40px rgba(15,23,42,.08)}
+    label{display:block;margin:12px 0}
+    input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px}
+    .button-primary{background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
+    .player-block{border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-top:12px;background:#fafafa}
+    .actions{display:flex;gap:8px;align-items:center;margin-top:8px}
+    .hidden{display:none}
+  </style>
+  <script>
+    let playerCount = 1;
+    let playerRows = [];
+
+    function addPlayerRow(){
+      if(playerCount >= 15) return;
+      const container = document.getElementById('players-container');
+      const idx = playerRows.length + 1;
+      const row = document.createElement('div');
+      row.className = 'player-block';
+      row.innerHTML = `
+        <h4>Player ${idx}</h4>
+        <label>Player Name<input class="player-name" required></label>
+        <label>KKFI Number<input class="player-kkfi" required></label>
+        <label>Chest Number<input class="player-chest" type="number" required></label>
+        <label>Document URL<input class="player-doc"></label>
+        <div class="actions">
+          <button type="button" class="button-primary" onclick="savePlayerRow(this)">Save Player</button>
+          <button type="button" onclick="removePlayerRow(this)">Remove</button>
+        </div>`;
+      container.appendChild(row);
+      playerRows.push(row);
+      playerCount = playerRows.length;
+      document.getElementById('player-count-label').textContent = `Players added: ${playerRows.length}`;
+      if(playerRows.length >= 15){ document.getElementById('add-player-btn').classList.add('hidden'); }
+    }
+
+    function removePlayerRow(btn){
+      const row = btn.closest('.player-block');
+      if(row){ row.remove(); }
+      playerRows = Array.from(document.querySelectorAll('#players-container .player-block'));
+      playerCount = playerRows.length;
+      document.getElementById('player-count-label').textContent = `Players added: ${playerRows.length}`;
+      if(playerRows.length < 15){ document.getElementById('add-player-btn').classList.remove('hidden'); }
+    }
+
+    function savePlayerRow(btn){
+      const row = btn.closest('.player-block');
+      const payload = {
+        player_name: row.querySelector('.player-name').value,
+        kkfi_number: row.querySelector('.player-kkfi').value,
+        chest_number: row.querySelector('.player-chest').value,
+        document_url: row.querySelector('.player-doc').value,
+      };
+      if(!payload.player_name || !payload.kkfi_number || !payload.chest_number){ alert('Please fill required player fields'); return; }
+      row.dataset.saved = 'true';
+      row.querySelector('.actions').innerHTML = '<span style="color:#16a34a">Saved</span><button type="button" onclick="removePlayerRow(this)">Remove</button>';
+      alert('Player saved in this session');
+    }
+
+    async function submitReg(e){
+      e.preventDefault();
+      const token = new URLSearchParams(location.search).get('token');
+      const teamData = {
+        team_name: document.getElementById('team_name').value,
+        tournament_id: document.getElementById('tournament_id').value,
+        address: document.getElementById('address').value,
+        manager_id: document.getElementById('manager_id').value,
+        players: Array.from(document.querySelectorAll('#players-container .player-block')).map(row => ({
+          player_name: row.querySelector('.player-name').value,
+          kkfi_number: row.querySelector('.player-kkfi').value,
+          chest_number: row.querySelector('.player-chest').value,
+          document_url: row.querySelector('.player-doc').value,
+        })).filter(p => p.player_name || p.kkfi_number || p.chest_number || p.document_url),
+      };
+      if(!teamData.team_name || !teamData.tournament_id || !teamData.address){ alert('Team name, tournament and address are required'); return; }
+      const res = await fetch('/register/team?token=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(teamData),
+      });
+      const body = await res.json();
+      if (!res.ok) { alert(body.error || 'Registration failed'); return; }
+      alert('Team and players registered successfully');
+    }
+
+    async function loadOptions(){
+      const tournamentSelect = document.getElementById('tournament_id');
+      const managerSelect = document.getElementById('manager_id');
+      tournamentSelect.innerHTML = '<option value="">Select tournament</option>';
+      managerSelect.innerHTML = '<option value="">Select manager</option>';
+      try {
+        const res = await fetch('/api/tournaments');
+        if (res.ok) {
+          const data = await res.json();
+          (data.tournaments || []).forEach(t => {
+            const o = document.createElement('option'); o.value = t.tournament_id; o.textContent = t.name; tournamentSelect.appendChild(o);
+          });
+        }
+      } catch (err) {}
+      try {
+        const res = await fetch('/api/managers');
+        if (res.ok) {
+          const data = await res.json();
+          (data.managers || []).forEach(m => {
+            const o = document.createElement('option'); o.value = m.manager_id; o.textContent = m.name || m.manager_id; managerSelect.appendChild(o);
+          });
+        }
+      } catch (err) {}
+    }
+
+    window.addEventListener('DOMContentLoaded', () => { loadOptions(); addPlayerRow(); });
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>Team and Players Registration</h2>
+    <form onsubmit="submitReg(event)">
+      <label>Team Name<input id="team_name" required></label>
+      <label>Tournament<select id="tournament_id" required></select></label>
+      <label>Address<input id="address" required></label>
+      <label>Manager<select id="manager_id" required></select></label>
+      <div style="margin-top:16px">
+        <h3>Players</h3>
+        <p id="player-count-label">Players added: 1</p>
+        <div id="players-container"></div>
+        <button type="button" id="add-player-btn" class="button-primary" onclick="addPlayerRow()" style="margin-top:10px">Add Player</button>
+      </div>
+      <div style="text-align:right;margin-top:14px"><button class="button-primary" type="submit">Register Team and Players</button></div>
+    </form>
+  </div>
+</body>
+</html>

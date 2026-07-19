@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-HOST = "0.0.0.0"
+HOST = "127.0.0.1"
 PORT = 8000
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "login.db"
@@ -44,8 +44,21 @@ def setup_database():
         )
 
         db.execute(
+            "CREATE TABLE IF NOT EXISTS team_managers ("
+            "manager_id TEXT PRIMARY KEY, name TEXT NOT NULL, age INTEGER, gender TEXT, "
+            "kkfi_number TEXT UNIQUE, phone TEXT, email TEXT UNIQUE, password_hash TEXT NOT NULL, "
+            "address TEXT, blocked INTEGER DEFAULT 0)"
+        )
+        ensure_manager_columns()
+
+        db.execute(
             "CREATE TABLE IF NOT EXISTS teams ("
             "team_id TEXT PRIMARY KEY, tournament_id TEXT, team_name TEXT NOT NULL, address TEXT, manager_id TEXT, blocked INTEGER DEFAULT 0)"
+        )
+
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS players ("
+            "player_id TEXT PRIMARY KEY, team_id TEXT, player_name TEXT NOT NULL, kkfi_number TEXT UNIQUE, chest_number INTEGER, document_url TEXT, manager_id TEXT, blocked INTEGER DEFAULT 0)"
         )
 
         db.execute(
@@ -79,6 +92,28 @@ def setup_database():
             db.executemany(
                 "INSERT INTO techteams (tt_id, name, password_hash, age, gender, kkfi_number, phone, email, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 tech_dummy,
+            )
+
+        if not db.execute("SELECT 1 FROM tournaments LIMIT 1").fetchone():
+            tournament_dummy = [
+                ("KT0001", "Summer Kho-Kho Cup", "2025-04-10", "2025-04-12", "completed", "Men"),
+                ("KT0002", "Monsoon Invitational", "2025-06-20", "2025-06-22", "active", "Women"),
+                ("KT0003", "Winter Trophy", "2025-12-15", "2025-12-17", "UPCOMING", "Mixed"),
+            ]
+            db.executemany(
+                "INSERT INTO tournaments (tournament_id, name, start_date, end_date, status, tournament_for) VALUES (?, ?, ?, ?, ?, ?)",
+                tournament_dummy,
+            )
+
+        if not db.execute("SELECT 1 FROM team_managers LIMIT 1").fetchone():
+            manager_dummy = [
+                ("TM0001", "Arjun Patel", 35, "M", "KKFI1001", "9876501001", "arjun@example.com", hashlib.sha256(b"managerpass1").hexdigest(), "Pune", 0),
+                ("TM0002", "Priya Menon", 29, "F", "KKFI1002", "9876501002", "priya@example.com", hashlib.sha256(b"managerpass2").hexdigest(), "Mumbai", 0),
+                ("TM0003", "Keshav Rao", 41, "M", "KKFI1003", "9876501003", "keshav@example.com", hashlib.sha256(b"managerpass3").hexdigest(), "Delhi", 1),
+            ]
+            db.executemany(
+                "INSERT INTO team_managers (manager_id, name, age, gender, kkfi_number, phone, email, password_hash, address, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                manager_dummy,
             )
 
         if not db.execute("SELECT 1 FROM umpires LIMIT 1").fetchone():
@@ -224,6 +259,199 @@ def get_tournament_by_id(tournament_id):
     }
 
 
+def get_public_tournaments():
+    with sqlite3.connect(DB_PATH) as db:
+        rows = db.execute(
+            "SELECT tournament_id, name, start_date, end_date, status, tournament_for FROM tournaments ORDER BY start_date DESC"
+        ).fetchall()
+    return [
+        {
+            "tournament_id": row[0],
+            "name": row[1],
+            "start_date": row[2],
+            "end_date": row[3],
+            "status": row[4],
+            "tournament_for": row[5],
+        }
+        for row in rows
+    ]
+
+
+def get_team_managers():
+    with sqlite3.connect(DB_PATH) as db:
+        rows = db.execute(
+            "SELECT manager_id, name, age, gender, kkfi_number, phone, email, address, blocked FROM team_managers ORDER BY name ASC"
+        ).fetchall()
+    return [
+        {
+            "manager_id": row[0],
+            "name": row[1],
+            "age": row[2],
+            "gender": row[3],
+            "kkfi_number": row[4],
+            "phone": row[5],
+            "email": row[6],
+            "address": row[7],
+            "blocked": bool(row[8]),
+        }
+        for row in rows
+    ]
+
+
+### Manager helpers and API
+
+def ensure_manager_columns():
+    with sqlite3.connect(DB_PATH) as db:
+        columns = {row[1] for row in db.execute("PRAGMA table_info(team_managers)")}
+        if "address" not in columns:
+            db.execute("ALTER TABLE team_managers ADD COLUMN address TEXT")
+        if "blocked" not in columns:
+            db.execute("ALTER TABLE team_managers ADD COLUMN blocked INTEGER DEFAULT 0")
+
+
+def build_manager_filter(where_clause, params, blocked=None, q=None):
+    if blocked is not None:
+        where_clause.append("m.blocked = ?")
+        params.append(1 if blocked else 0)
+    if q:
+        where_clause.append("(LOWER(m.manager_id) LIKE ? OR LOWER(m.name) LIKE ? OR LOWER(m.kkfi_number) LIKE ? OR LOWER(m.phone) LIKE ?)")
+        value = f"%{q.lower()}%"
+        params.extend([value, value, value, value])
+
+
+def get_managers(blocked=None, q=None, limit=None, offset=None):
+    where_clause = []
+    params = []
+    build_manager_filter(where_clause, params, blocked, q)
+    query = (
+        "SELECT m.manager_id, m.name, m.age, m.gender, m.kkfi_number, m.phone, m.email, m.address, m.blocked, "
+        "t.team_name, t.team_id, t.tournament_id, tr.name AS tournament_name "
+        "FROM team_managers m LEFT JOIN teams t ON t.manager_id = m.manager_id "
+        "LEFT JOIN tournaments tr ON tr.tournament_id = t.tournament_id"
+    )
+    if where_clause:
+        query += " WHERE " + " AND ".join(where_clause)
+    query += " ORDER BY m.name ASC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+        if offset is not None:
+            query += " OFFSET ?"
+            params.append(offset)
+    with sqlite3.connect(DB_PATH) as db:
+        rows = db.execute(query, params).fetchall()
+    return [
+        {
+            "manager_id": r[0],
+            "name": r[1],
+            "age": r[2],
+            "gender": r[3],
+            "kkfi_number": r[4],
+            "phone": r[5],
+            "email": r[6],
+            "address": r[7],
+            "blocked": bool(r[8]),
+            "team_name": r[9],
+            "team_id": r[10],
+            "tournament_id": r[11],
+            "tournament_name": r[12],
+        }
+        for r in rows
+    ]
+
+
+def count_managers(blocked=None, q=None):
+    where_clause = []
+    params = []
+    build_manager_filter(where_clause, params, blocked, q)
+    query = "SELECT COUNT(*) FROM team_managers m"
+    if where_clause:
+        query += " WHERE " + " AND ".join(where_clause)
+    with sqlite3.connect(DB_PATH) as db:
+        return db.execute(query, params).fetchone()[0]
+
+
+def get_manager_stats():
+    with sqlite3.connect(DB_PATH) as db:
+        rows = db.execute("SELECT blocked FROM team_managers").fetchall()
+    total = len(rows)
+    blocked = sum(1 for r in rows if r[0])
+    return {"total": total, "blocked": blocked}
+
+
+def get_manager_by_id(manager_id):
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute(
+            "SELECT manager_id, name, age, gender, kkfi_number, phone, email, address, blocked FROM team_managers WHERE manager_id = ?",
+            (manager_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "manager_id": row[0],
+        "name": row[1],
+        "age": row[2],
+        "gender": row[3],
+        "kkfi_number": row[4],
+        "phone": row[5],
+        "email": row[6],
+        "address": row[7],
+        "blocked": bool(row[8]),
+    }
+
+
+def create_manager(data):
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute("SELECT MAX(CAST(SUBSTR(manager_id, 3) AS INTEGER)) FROM team_managers").fetchone()
+        max_index = row[0] if row and row[0] is not None else 0
+        manager_id = f"TM{max_index + 1:04d}"
+        password = data.get("password")
+        password_hash_value = data.get("password_hash") or (hashlib.sha256(password.encode()).hexdigest() if password else "")
+        db.execute(
+            "INSERT INTO team_managers (manager_id, name, age, gender, kkfi_number, phone, email, password_hash, address, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+            (
+                manager_id,
+                data["name"],
+                data.get("age"),
+                data.get("gender"),
+                data.get("kkfi_number"),
+                data.get("phone"),
+                data.get("email"),
+                password_hash_value,
+                data.get("address"),
+            ),
+        )
+    return get_manager_by_id(manager_id)
+
+
+def update_manager(manager_id, data):
+    with sqlite3.connect(DB_PATH) as db:
+        password_hash_value = None
+        if data.get("password"):
+            password_hash_value = hashlib.sha256(data["password"].encode()).hexdigest()
+        if password_hash_value:
+            db.execute(
+                "UPDATE team_managers SET name = ?, age = ?, gender = ?, kkfi_number = ?, phone = ?, email = ?, address = ?, password_hash = ? WHERE manager_id = ?",
+                (data["name"], data.get("age"), data.get("gender"), data.get("kkfi_number"), data.get("phone"), data.get("email"), data.get("address"), password_hash_value, manager_id),
+            )
+        else:
+            db.execute(
+                "UPDATE team_managers SET name = ?, age = ?, gender = ?, kkfi_number = ?, phone = ?, email = ?, address = ? WHERE manager_id = ?",
+                (data["name"], data.get("age"), data.get("gender"), data.get("kkfi_number"), data.get("phone"), data.get("email"), data.get("address"), manager_id),
+            )
+    return get_manager_by_id(manager_id)
+
+
+def delete_manager(manager_id):
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("DELETE FROM team_managers WHERE manager_id = ?", (manager_id,))
+
+
+def set_manager_block_status(manager_id, blocked=True):
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("UPDATE team_managers SET blocked = ? WHERE manager_id = ?", (1 if blocked else 0, manager_id))
+
+
 ### Tech Team helpers and API
 
 def get_techteam_stats():
@@ -315,6 +543,31 @@ def create_team(data):
     return get_team_by_id(team_id)
 
 
+def create_team_with_players(data):
+    team_data = {
+        "team_name": data.get("team_name"),
+        "tournament_id": data.get("tournament_id"),
+        "address": data.get("address"),
+        "manager_id": data.get("manager_id"),
+    }
+    team = create_team(team_data)
+    players = data.get("players", []) or []
+    created_players = []
+    for raw_player in players:
+        if not raw_player:
+            continue
+        player_payload = {
+            "team_id": team["team_id"],
+            "player_name": raw_player.get("player_name"),
+            "kkfi_number": raw_player.get("kkfi_number"),
+            "chest_number": raw_player.get("chest_number"),
+            "document_url": raw_player.get("document_url"),
+            "manager_id": team_data.get("manager_id"),
+        }
+        created_players.append(create_player(player_payload))
+    return {"team": team, "players": created_players}
+
+
 def update_team(team_id, data):
     with sqlite3.connect(DB_PATH) as db:
         db.execute(
@@ -340,6 +593,145 @@ def get_team_stats():
     total = len(rows)
     blocked = sum(1 for r in rows if r[0])
     return {"total": total, "blocked": blocked}
+
+
+def build_player_filter(where_clause, params, blocked=None, q=None):
+    if blocked is not None:
+        where_clause.append("p.blocked = ?")
+        params.append(1 if blocked else 0)
+    if q:
+        where_clause.append("(LOWER(p.player_id) LIKE ? OR LOWER(p.player_name) LIKE ? OR LOWER(p.kkfi_number) LIKE ? OR LOWER(t.team_name) LIKE ? OR LOWER(t.team_id) LIKE ?)")
+        value = f"%{q.lower()}%"
+        params.extend([value, value, value, value, value])
+
+
+def get_players(blocked=None, q=None, limit=None, offset=None):
+    where_clause = []
+    params = []
+    build_player_filter(where_clause, params, blocked, q)
+    query = (
+        "SELECT p.player_id, p.team_id, p.player_name, p.kkfi_number, p.chest_number, p.document_url, p.manager_id, p.blocked, "
+        "t.team_name, t.tournament_id, tr.name AS tournament_name, tm.name AS manager_name, tm.phone AS manager_phone "
+        "FROM players p "
+        "LEFT JOIN teams t ON t.team_id = p.team_id "
+        "LEFT JOIN tournaments tr ON tr.tournament_id = t.tournament_id "
+        "LEFT JOIN team_managers tm ON tm.manager_id = p.manager_id"
+    )
+    if where_clause:
+        query += " WHERE " + " AND ".join(where_clause)
+    query += " ORDER BY p.player_name ASC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+        if offset is not None:
+            query += " OFFSET ?"
+            params.append(offset)
+    with sqlite3.connect(DB_PATH) as db:
+        rows = db.execute(query, params).fetchall()
+    return [
+        {
+            "player_id": row[0],
+            "team_id": row[1],
+            "player_name": row[2],
+            "kkfi_number": row[3],
+            "chest_number": row[4],
+            "document_url": row[5],
+            "manager_id": row[6],
+            "blocked": bool(row[7]),
+            "team_name": row[8],
+            "tournament_id": row[9],
+            "tournament_name": row[10],
+            "manager_name": row[11],
+            "manager_phone": row[12],
+        }
+        for row in rows
+    ]
+
+
+def count_players(blocked=None, q=None):
+    where_clause = []
+    params = []
+    build_player_filter(where_clause, params, blocked, q)
+    query = "SELECT COUNT(*) FROM players p"
+    if where_clause:
+        query += " WHERE " + " AND ".join(where_clause)
+    with sqlite3.connect(DB_PATH) as db:
+        return db.execute(query, params).fetchone()[0]
+
+
+def get_player_stats():
+    with sqlite3.connect(DB_PATH) as db:
+        rows = db.execute("SELECT blocked FROM players").fetchall()
+    total = len(rows)
+    blocked = sum(1 for r in rows if r[0])
+    return {"total": total, "blocked": blocked}
+
+
+def get_player_by_id(player_id):
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute(
+            "SELECT player_id, team_id, player_name, kkfi_number, chest_number, document_url, manager_id, blocked FROM players WHERE player_id = ?",
+            (player_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "player_id": row[0],
+        "team_id": row[1],
+        "player_name": row[2],
+        "kkfi_number": row[3],
+        "chest_number": row[4],
+        "document_url": row[5],
+        "manager_id": row[6],
+        "blocked": bool(row[7]),
+    }
+
+
+def create_player(data):
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute("SELECT MAX(CAST(SUBSTR(player_id, 2) AS INTEGER)) FROM players").fetchone()
+        max_index = row[0] if row and row[0] is not None else 0
+        player_id = f"P{max_index + 1:04d}"
+        db.execute(
+            "INSERT INTO players (player_id, team_id, player_name, kkfi_number, chest_number, document_url, manager_id, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+            (
+                player_id,
+                data.get("team_id"),
+                data["player_name"],
+                data.get("kkfi_number"),
+                data.get("chest_number"),
+                data.get("document_url"),
+                data.get("manager_id"),
+            ),
+        )
+    return get_player_by_id(player_id)
+
+
+def update_player(player_id, data):
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute(
+            "UPDATE players SET team_id = ?, player_name = ?, kkfi_number = ?, chest_number = ?, document_url = ?, manager_id = ? WHERE player_id = ?",
+            (
+                data.get("team_id"),
+                data["player_name"],
+                data.get("kkfi_number"),
+                data.get("chest_number"),
+                data.get("document_url"),
+                data.get("manager_id"),
+                player_id,
+            ),
+        )
+    return get_player_by_id(player_id)
+
+
+def delete_player(player_id):
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("DELETE FROM players WHERE player_id = ?", (player_id,))
+
+
+def set_player_block_status(player_id, blocked=True):
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("UPDATE players SET blocked = ? WHERE player_id = ?", (1 if blocked else 0, player_id))
 
 
 def build_tt_filter(where_clause, params, blocked=None, q=None):
@@ -500,6 +892,29 @@ def create_umpire(data):
     return get_umpire_by_id(umpire_id)
 
 
+def create_techteam(data):
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute("SELECT MAX(CAST(SUBSTR(tt_id, 3) AS INTEGER)) FROM techteams").fetchone()
+        max_index = row[0] if row and row[0] is not None else 0
+        tt_id = f"TT{max_index + 1:04d}"
+        password = data.get("password")
+        password_hash_value = data.get("password_hash") or (hashlib.sha256(password.encode()).hexdigest() if password else "")
+        db.execute(
+            "INSERT INTO techteams (tt_id, name, password_hash, age, gender, kkfi_number, phone, email, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+            (
+                tt_id,
+                data["name"],
+                password_hash_value,
+                data.get("age"),
+                data.get("gender"),
+                data.get("kkfi_number"),
+                data.get("phone"),
+                data.get("email"),
+            ),
+        )
+    return get_techteam_by_id(tt_id)
+
+
 def update_umpire(umpire_id, data):
     with sqlite3.connect(DB_PATH) as db:
         db.execute(
@@ -646,7 +1061,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_html(load_template("admin_players.html", title="Players"))
             return
 
-        if path == "/api/tournaments" and self.session_token() in SESSIONS:
+        if path == "/api/tournaments":
             params = parse_qs(parsed.query)
             status = params.get("status", [None])[0]
             q = params.get("q", [None])[0]
@@ -655,6 +1070,20 @@ class Handler(BaseHTTPRequestHandler):
             tournaments = get_tournaments(status=status, q=q, limit=page_size, offset=(page - 1) * page_size)
             total = count_tournaments(status=status, q=q)
             send_json(self, {"tournaments": tournaments, "total": total})
+            return
+
+        if path == "/api/managers":
+            params = parse_qs(parsed.query)
+            blocked_raw = params.get("blocked", [None])[0]
+            blocked = None
+            if blocked_raw is not None and blocked_raw != "":
+                blocked = True if blocked_raw in ("1", "true", "True", "yes") else False
+            q = params.get("q", [None])[0]
+            page = int(params.get("page", [1])[0])
+            page_size = int(params.get("page_size", [6])[0])
+            managers = get_managers(blocked=blocked, q=q, limit=page_size, offset=(page - 1) * page_size)
+            total = count_managers(blocked=blocked, q=q)
+            send_json(self, {"managers": managers, "total": total})
             return
 
         if path == "/api/techteams" and self.session_token() in SESSIONS:
@@ -686,6 +1115,20 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, {"teams": teams, "total": total})
             return
 
+        if path == "/api/players" and self.session_token() in SESSIONS:
+            params = parse_qs(parsed.query)
+            blocked_raw = params.get("blocked", [None])[0]
+            blocked = None
+            if blocked_raw is not None and blocked_raw != "":
+                blocked = True if blocked_raw in ("1", "true", "True", "yes") else False
+            q = params.get("q", [None])[0]
+            page = int(params.get("page", [1])[0])
+            page_size = int(params.get("page_size", [6])[0])
+            players = get_players(blocked=blocked, q=q, limit=page_size, offset=(page - 1) * page_size)
+            total = count_players(blocked=blocked, q=q)
+            send_json(self, {"players": players, "total": total})
+            return
+
         if path == "/api/umpires" and self.session_token() in SESSIONS:
             params = parse_qs(parsed.query)
             blocked_raw = params.get("blocked", [None])[0]
@@ -704,12 +1147,20 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, get_tournament_stats())
             return
 
+        if path == "/api/managers/stats" and self.session_token() in SESSIONS:
+            send_json(self, get_manager_stats())
+            return
+
         if path == "/api/techteams/stats" and self.session_token() in SESSIONS:
             send_json(self, get_techteam_stats())
             return
 
         if path == "/api/teams/stats" and self.session_token() in SESSIONS:
             send_json(self, get_team_stats())
+            return
+
+        if path == "/api/players/stats" and self.session_token() in SESSIONS:
+            send_json(self, get_player_stats())
             return
 
         if path == "/api/umpires/stats" and self.session_token() in SESSIONS:
@@ -721,6 +1172,15 @@ class Handler(BaseHTTPRequestHandler):
             tournament = get_tournament_by_id(tournament_id)
             if tournament:
                 send_json(self, tournament)
+            else:
+                send_json(self, {"error": "Not found"}, status=404)
+            return
+
+        if path.startswith("/api/managers/") and self.session_token() in SESSIONS:
+            manager_id = path.rsplit("/", 1)[-1]
+            manager = get_manager_by_id(manager_id)
+            if manager:
+                send_json(self, manager)
             else:
                 send_json(self, {"error": "Not found"}, status=404)
             return
@@ -742,6 +1202,16 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 send_json(self, {"error": "Not found"}, status=404)
             return
+
+        if path.startswith("/api/players/") and self.session_token() in SESSIONS:
+            player_id = path.rsplit("/", 1)[-1]
+            player = get_player_by_id(player_id)
+            if player:
+                send_json(self, player)
+            else:
+                send_json(self, {"error": "Not found"}, status=404)
+            return
+
         if path.startswith("/api/umpires/") and self.session_token() in SESSIONS:
             umpire_id = path.rsplit("/", 1)[-1]
             umpire = get_umpire_by_id(umpire_id)
@@ -779,6 +1249,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_html(load_template("register_umpire.html", title="Umpire Registration", token=token))
             return
 
+        if path == "/register/manager":
+            params = parse_qs(parsed.query)
+            token = params.get("token", [None])[0]
+            if not token:
+                self.send_html(b"Invalid token", 400)
+                return
+            self.send_html(load_template("register_manager.html", title="Manager Registration", token=token))
+            return
+
         if path == "/register/team":
             params = parse_qs(parsed.query)
             token = params.get("token", [None])[0]
@@ -786,6 +1265,15 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_html(b"Invalid token", 400)
                 return
             self.send_html(load_template("register_team.html", title="Team Registration", token=token))
+            return
+
+        if path == "/register/team-players":
+            params = parse_qs(parsed.query)
+            token = params.get("token", [None])[0]
+            if not token:
+                self.send_html(b"Invalid token", 400)
+                return
+            self.send_html(load_template("register_team_players.html", title="Team and Players Registration", token=token))
             return
 
         self.redirect("/")
@@ -829,6 +1317,22 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, tournament, status=201)
             return
 
+        if path == "/api/managers" and self.session_token() in SESSIONS:
+            data = parse_json_body(self, length)
+            try:
+                manager = create_manager(data)
+            except sqlite3.IntegrityError as e:
+                send_json(self, {"error": "Integrity error", "detail": str(e)}, status=400)
+                return
+            except KeyError as e:
+                send_json(self, {"error": "Missing field", "detail": str(e)}, status=400)
+                return
+            except Exception as e:
+                send_json(self, {"error": "Server error", "detail": str(e)}, status=500)
+                return
+            send_json(self, manager, status=201)
+            return
+
         # Techteam create
         if path == "/api/techteams" and self.session_token() in SESSIONS:
             data = parse_json_body(self, length)
@@ -861,6 +1365,23 @@ class Handler(BaseHTTPRequestHandler):
                 send_json(self, {"error": "Server error", "detail": str(e)}, status=500)
                 return
             send_json(self, team, status=201)
+            return
+
+        # Player create
+        if path == "/api/players" and self.session_token() in SESSIONS:
+            data = parse_json_body(self, length)
+            try:
+                player = create_player(data)
+            except sqlite3.IntegrityError as e:
+                send_json(self, {"error": "Integrity error", "detail": str(e)}, status=400)
+                return
+            except KeyError as e:
+                send_json(self, {"error": "Missing field", "detail": str(e)}, status=400)
+                return
+            except Exception as e:
+                send_json(self, {"error": "Server error", "detail": str(e)}, status=500)
+                return
+            send_json(self, player, status=201)
             return
 
         # Umpire create
@@ -897,11 +1418,27 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, {"link": link})
             return
 
+        if path == "/api/managers/links" and self.session_token() in SESSIONS:
+            data = parse_json_body(self, length)
+            expires = int(data.get("expires_seconds", 3600))
+            token = create_invite(expires, role="manager")
+            link = f"http://{HOST}:{PORT}/register/manager?token={token}"
+            send_json(self, {"link": link})
+            return
+
         if path == "/api/teams/links" and self.session_token() in SESSIONS:
             data = parse_json_body(self, length)
             expires = int(data.get("expires_seconds", 3600))
             token = create_invite(expires, role="team")
             link = f"http://{HOST}:{PORT}/register/team?token={token}"
+            send_json(self, {"link": link})
+            return
+
+        if path == "/api/teams/players/links" and self.session_token() in SESSIONS:
+            data = parse_json_body(self, length)
+            expires = int(data.get("expires_seconds", 3600))
+            token = create_invite(expires, role="team_players")
+            link = f"http://{HOST}:{PORT}/register/team-players?token={token}"
             send_json(self, {"link": link})
             return
 
@@ -921,6 +1458,10 @@ class Handler(BaseHTTPRequestHandler):
                 set_umpire_block_status(entity_id, blocked)
             elif path.startswith("/api/teams/"):
                 set_team_block_status(entity_id, blocked)
+            elif path.startswith("/api/managers/"):
+                set_manager_block_status(entity_id, blocked)
+            elif path.startswith("/api/players/"):
+                set_player_block_status(entity_id, blocked)
             else:
                 set_block_status(entity_id, blocked)
             send_json(self, {"success": True})
@@ -988,6 +1529,36 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, umpire, status=201)
             return
 
+        if path == "/register/manager" and self.command == 'POST':
+            params = parse_qs(parsed.query)
+            token = params.get("token", [None])[0]
+            if not token:
+                send_json(self, {"error": "Missing token"}, status=400)
+                return
+            invite = get_invite(token)
+            if not invite:
+                send_json(self, {"error": "Invalid token"}, status=400)
+                return
+            import datetime
+            expires_at = invite[1]
+            used = invite[2]
+            if used:
+                send_json(self, {"error": "Token already used"}, status=400)
+                return
+            if datetime.datetime.fromisoformat(expires_at) < datetime.datetime.utcnow():
+                send_json(self, {"error": "Token expired"}, status=400)
+                return
+            data = parse_json_body(self, length)
+            required = ["name", "password", "age", "gender", "kkfi_number", "phone", "email", "address"]
+            if not all(k in data and data[k] for k in required):
+                send_json(self, {"error": "Missing fields"}, status=400)
+                return
+            manager = create_manager(data)
+            with sqlite3.connect(DB_PATH) as db:
+                db.execute("UPDATE invites SET used = 1 WHERE token = ?", (token,))
+            send_json(self, manager, status=201)
+            return
+
         if path == "/register/team" and self.command == 'POST':
             params = parse_qs(parsed.query)
             token = params.get("token", [None])[0]
@@ -1012,10 +1583,16 @@ class Handler(BaseHTTPRequestHandler):
             if not all(k in data and data[k] for k in required):
                 send_json(self, {"error": "Missing fields"}, status=400)
                 return
-            team = create_team(data)
+            if data.get("players") is None:
+                team = create_team(data)
+                with sqlite3.connect(DB_PATH) as db:
+                    db.execute("UPDATE invites SET used = 1 WHERE token = ?", (token,))
+                send_json(self, team, status=201)
+                return
+            result = create_team_with_players(data)
             with sqlite3.connect(DB_PATH) as db:
                 db.execute("UPDATE invites SET used = 1 WHERE token = ?", (token,))
-            send_json(self, team, status=201)
+            send_json(self, result, status=201)
             return
 
         self.redirect("/")
@@ -1031,6 +1608,16 @@ class Handler(BaseHTTPRequestHandler):
             tournament = update_tournament(tournament_id, data)
             if tournament:
                 send_json(self, tournament)
+            else:
+                send_json(self, {"error": "Not found"}, status=404)
+            return
+
+        if path.startswith("/api/managers/") and self.session_token() in SESSIONS:
+            manager_id = path.rsplit("/", 1)[-1]
+            data = parse_json_body(self, length)
+            manager = update_manager(manager_id, data)
+            if manager:
+                send_json(self, manager)
             else:
                 send_json(self, {"error": "Not found"}, status=404)
             return
@@ -1051,6 +1638,16 @@ class Handler(BaseHTTPRequestHandler):
             umpire = update_umpire(umpire_id, data)
             if umpire:
                 send_json(self, umpire)
+            else:
+                send_json(self, {"error": "Not found"}, status=404)
+            return
+
+        if path.startswith("/api/players/") and self.session_token() in SESSIONS:
+            player_id = path.rsplit("/", 1)[-1]
+            data = parse_json_body(self, length)
+            player = update_player(player_id, data)
+            if player:
+                send_json(self, player)
             else:
                 send_json(self, {"error": "Not found"}, status=404)
             return
@@ -1076,6 +1673,12 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, {"success": True})
             return
 
+        if path.startswith("/api/managers/") and self.session_token() in SESSIONS:
+            manager_id = path.rsplit("/", 1)[-1]
+            delete_manager(manager_id)
+            send_json(self, {"success": True})
+            return
+
         if path.startswith("/api/techteams/") and self.session_token() in SESSIONS:
             tt_id = path.rsplit("/", 1)[-1]
             delete_techteam(tt_id)
@@ -1085,6 +1688,12 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/umpires/") and self.session_token() in SESSIONS:
             umpire_id = path.rsplit("/", 1)[-1]
             delete_umpire(umpire_id)
+            send_json(self, {"success": True})
+            return
+
+        if path.startswith("/api/players/") and self.session_token() in SESSIONS:
+            player_id = path.rsplit("/", 1)[-1]
+            delete_player(player_id)
             send_json(self, {"success": True})
             return
 

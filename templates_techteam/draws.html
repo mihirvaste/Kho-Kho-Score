@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; }
+    .brand { padding: 22px 20px; font-size: 1.05rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    nav { flex: 1; padding: 10px 0; }
+    nav a { display: block; color: inherit; text-decoration: none; padding: 12px 20px; }
+    nav a:hover { background: rgba(255,255,255,0.08); }
+    .logout { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.12); }
+    .main { flex: 1; padding: 24px; }
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 20px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab { padding: 10px 14px; border-radius: 999px; background: #e5e7eb; cursor: pointer; border: none; }
+    .tab.active { background: #0369a1; color: white; }
+    .wizard-step { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
+    input, select, textarea { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    button { border: none; padding: 10px 12px; border-radius: 8px; cursor: pointer; background: #0369a1; color: white; }
+    button.secondary { background: #10b981; }
+    button.danger { background: #dc2626; }
+    .group-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; margin-top: 12px; background: #fff; }
+    .group-card h4 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .muted { color: #6b7280; font-size: 0.95rem; }
+    .alert { padding: 12px; border-radius: 10px; margin-bottom: 12px; }
+    .alert.success { background: #ecfdf5; color: #065f46; }
+    .alert.error { background: #fef2f2; color: #991b1b; }
+    .hidden { display: none; }
+    .pill { display: inline-block; padding: 6px 10px; background: #e0f2fe; border-radius: 999px; font-size: 0.9rem; color: #075985; }
+    @media (max-width: 900px) { .layout { flex-direction: column; } .sidebar { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Tech Team Panel</div>
+      <nav>
+        <a href="/home">Home</a>
+        <a href="/umpires">Umpires</a>
+        <a href="/managers">Managers</a>
+        <a href="/players">Players</a>
+        <a href="/tournaments">Tournament Matches</a>
+      </nav>
+      <div class="logout"><a href="/logout">Logout</a></div>
+    </aside>
+    <section class="main">
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <h1>Create Draws - {{ tournament_name }}</h1>
+            <p class="muted">Tournament ID: {{ tournament_id }}</p>
+          </div>
+          <div class="pill">Draws Builder</div>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-tab="group">Group Stage</button>
+          <button class="tab" data-tab="knockout">Knockout Stage</button>
+          <button class="tab" data-tab="league">League</button>
+        </div>
+        <div id="alert-box"></div>
+        <div id="group-panel" class="tab-panel">
+          <div class="wizard-step">
+            <h3>Step 1 - Tournament Configuration</h3>
+            <div class="grid">
+              <label>Number of Groups<input id="group-count" type="number" min="1" value="2"></label>
+              <label>Teams Per Group<input id="teams-per-group" type="number" min="2" value="4"></label>
+              <label>Match Format<select id="match-format"><option value="round-robin">Round Robin</option></select></label>
+            </div>
+            <div class="actions"><button onclick="generateGroups()">Generate Groups</button></div>
+          </div>
+          <div class="wizard-step">
+            <h3>Step 2 - Assign Teams</h3>
+            <p class="muted">Remaining unassigned teams are shown below. A team can only appear in one group.</p>
+            <div id="group-assignments"></div>
+          </div>
+          <div class="wizard-step">
+            <h3>Step 3 - Generate Fixtures</h3>
+            <div class="actions"><button class="secondary" onclick="generateFixtures()">Generate Fixtures</button></div>
+            <div id="group-fixtures"></div>
+          </div>
+          <div class="wizard-step">
+            <h3>Step 4 - Knockout Fixtures</h3>
+            <div class="grid">
+              <label>Stage<select id="knockout-stage"><option>Quarter Final</option><option>Semi Final</option><option>Final</option></select></label>
+              <label>Number of Matches<input id="knockout-count" type="number" min="1" value="1"></label>
+            </div>
+            <div class="actions"><button onclick="addKnockoutMatches()">Add Match</button></div>
+            <div id="knockout-fixtures"></div>
+          </div>
+          <div class="wizard-step">
+            <h3>Step 5 - Preview</h3>
+            <div id="preview-table"></div>
+            <div class="actions"><button onclick="saveAllDraws()">Save All</button></div>
+          </div>
+        </div>
+        <div id="knockout-panel" class="tab-panel hidden">
+          <div class="wizard-step">
+            <h3>Knockout Fixtures</h3>
+            <div class="grid">
+              <label>Stage<select id="ko-stage"><option>Quarter Final</option><option>Semi Final</option><option>Final</option></select></label>
+              <label>Number of Matches<input id="ko-count" type="number" min="1" value="1"></label>
+            </div>
+            <div class="actions"><button onclick="generateKnockoutOnly()">Generate</button></div>
+            <div id="knockout-only-table"></div>
+            <div class="actions"><button onclick="saveKnockoutDraws()">Save</button></div>
+          </div>
+        </div>
+        <div id="league-panel" class="tab-panel hidden">
+          <div class="wizard-step">
+            <h3>League Fixtures</h3>
+            <div class="grid">
+              <label>Number of Teams<input id="league-team-count" type="number" min="2" value="4"></label>
+              <label>Match Format<select id="league-format"><option value="round-robin">Round Robin</option></select></label>
+            </div>
+            <div class="actions"><button onclick="generateLeagueFixtures()">Generate</button></div>
+            <div id="league-table"></div>
+            <div class="actions"><button onclick="saveLeagueDraws()">Save</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+<script>
+const tournamentId = '{{ tournament_id }}';
+let teams = [];
+let groups = [];
+let generatedDraws = [];
+const state = { activeTab: 'group' };
+
+function showAlert(message, isError) {
+  const box = document.getElementById('alert-box');
+  box.className = `alert ${isError ? 'error' : 'success'}`;
+  box.textContent = message;
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function loadTeams() {
+  fetch('/api/teams').then(res => res.json()).then(data => {
+    teams = (data.teams || []).filter(item => item.tournament_id === tournamentId);
+    if (!teams.length) {
+      showAlert('No teams are linked to this tournament yet.', true);
+    }
+  });
+}
+
+function createSelect(options, selectedValue = '') {
+  const current = selectedValue || '';
+  return `<select class="team-select">${options.map(item => `<option value="${item.value}" ${item.value === current ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select>`;
+}
+
+function generateGroups() {
+  const groupCount = parseInt(document.getElementById('group-count').value || '2', 10);
+  const teamsPerGroup = parseInt(document.getElementById('teams-per-group').value || '4', 10);
+  if (!teams.length) {
+    showAlert('Add teams to this tournament before generating groups.', true);
+    return;
+  }
+  if (groupCount < 1 || teamsPerGroup < 2 || teams.length < groupCount * teamsPerGroup) {
+    showAlert('The configured group size does not fit the available teams.', true);
+    return;
+  }
+  const shuffled = [...teams].sort(() => Math.random() - 0.5);
+  groups = [];
+  const groupNames = Array.from({ length: groupCount }, (_, index) => `Group ${String.fromCharCode(65 + index)}`);
+  groupNames.forEach((name, index) => {
+    groups.push({ name, members: shuffled.slice(index * teamsPerGroup, (index + 1) * teamsPerGroup).map(item => item.team_id) });
+  });
+  renderGroupAssignments();
+  showAlert('Groups generated successfully.', false);
+}
+
+function changeGroupMember(groupIndex, memberIndex, selectedValue) {
+  const group = groups[groupIndex];
+  if (!group) return;
+  const existing = group.members[memberIndex];
+  const usedByOtherGroups = groups.flatMap((item, idx) => idx === groupIndex ? [] : item.members);
+  if (selectedValue && usedByOtherGroups.includes(selectedValue) && selectedValue !== existing) {
+    showAlert('A team can only appear once across groups.', true);
+    return;
+  }
+  group.members[memberIndex] = selectedValue;
+  renderGroupAssignments();
+}
+
+function renderGroupAssignments() {
+  const container = document.getElementById('group-assignments');
+  const options = teams.map(team => ({ value: team.team_id, label: team.team_name }));
+  const html = [];
+  groups.forEach((group, groupIndex) => {
+    html.push(`<div class="group-card"><h4>${group.name}</h4>${group.members.map((teamId, memberIndex) => {
+      const team = teams.find(item => item.team_id === teamId);
+      const selectOptions = [{ value: '', label: 'Select team' }, ...options.filter(option => option.value === teamId || !groups.flatMap(item => item.members).includes(option.value) || option.value === teamId)];
+      return `<label>Team ${memberIndex + 1}<select onchange="changeGroupMember(${groupIndex}, ${memberIndex}, this.value)">${selectOptions.map(option => `<option value="${option.value}" ${option.value === teamId ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select></label>`;
+    }).join('')}</div>`);
+  });
+  const assigned = new Set(groups.flatMap(group => group.members));
+  const remaining = teams.filter(team => !assigned.has(team.team_id));
+  if (remaining.length) {
+    html.push(`<div class="group-card"><h4>Remaining Unassigned Teams</h4><p>${remaining.map(team => team.team_name).join(', ')}</p></div>`);
+  }
+  container.innerHTML = html.join('');
+}
+
+function generateFixtures() {
+  if (!groups.length) {
+    showAlert('Generate groups first.', true);
+    return;
+  }
+  generatedDraws = [];
+  groups.forEach(group => {
+    const members = group.members.filter(Boolean);
+    if (members.length < 2) {
+      return;
+    }
+    const roundRobin = [];
+    for (let i = 0; i < members.length; i += 1) {
+      for (let j = i + 1; j < members.length; j += 1) {
+        roundRobin.push({ team_a_id: members[i], team_b_id: members[j], group_name: group.name, draw_type: 'group', status: 'Scheduled' });
+      }
+    }
+    roundRobin.forEach((fixture, index) => {
+      generatedDraws.push({ ...fixture, match_number: index + 1, fixture_date: '', fixture_time: '', ground: '', umpire_id: '', status: 'Scheduled' });
+    });
+  });
+  renderFixtures();
+  renderPreview();
+  showAlert('Fixtures generated successfully.', false);
+}
+
+function renderFixtures() {
+  const container = document.getElementById('group-fixtures');
+  if (!generatedDraws.length) {
+    container.innerHTML = '<p class="muted">No fixtures generated yet.</p>';
+    return;
+  }
+  const grouped = generatedDraws.reduce((acc, fixture) => {
+    (acc[fixture.group_name] ||= []).push(fixture);
+    return acc;
+  }, {});
+  container.innerHTML = Object.entries(grouped).map(([groupName, fixtures]) => `
+    <div class="group-card">
+      <h4>${escapeHtml(groupName)}</h4>
+      <table>
+        <thead><tr><th>#</th><th>Team 1</th><th>Team 2</th><th>Date</th><th>Time</th><th>Ground</th><th>Umpire</th><th>Status</th><th></th></tr></thead>
+        <tbody>${fixtures.map((fixture, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(teamName(fixture.team_a_id))}</td>
+            <td>${escapeHtml(teamName(fixture.team_b_id))}</td>
+            <td><input value="${fixture.fixture_date || ''}" onchange="updateFixture(${fixture.match_number}, 'fixture_date', this.value)"></td>
+            <td><input value="${fixture.fixture_time || ''}" onchange="updateFixture(${fixture.match_number}, 'fixture_time', this.value)"></td>
+            <td><input value="${fixture.ground || ''}" onchange="updateFixture(${fixture.match_number}, 'ground', this.value)"></td>
+            <td><input value="${fixture.umpire_id || ''}" onchange="updateFixture(${fixture.match_number}, 'umpire_id', this.value)"></td>
+            <td><input value="${fixture.status || 'Scheduled'}" onchange="updateFixture(${fixture.match_number}, 'status', this.value)"></td>
+            <td><button class="danger" onclick="removeFixture(${fixture.match_number})">Delete</button></td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>`).join('');
+}
+
+function teamName(teamId) {
+  const team = teams.find(item => item.team_id === teamId);
+  return team ? team.team_name : teamId;
+}
+
+function updateFixture(matchNumber, field, value) {
+  const fixture = generatedDraws.find(item => item.match_number === matchNumber);
+  if (fixture) {
+    fixture[field] = value;
+    renderPreview();
+  }
+}
+
+function removeFixture(matchNumber) {
+  generatedDraws = generatedDraws.filter(item => item.match_number !== matchNumber);
+  renderFixtures();
+  renderPreview();
+}
+
+function addKnockoutMatches() {
+  const stage = document.getElementById('knockout-stage').value;
+  const count = parseInt(document.getElementById('knockout-count').value || '1', 10);
+  for (let index = 0; index < count; index += 1) {
+    generatedDraws.push({ draw_type: 'knockout', stage, team_a_id: '', team_b_id: '', fixture_date: '', fixture_time: '', ground: '', umpire_id: '', status: 'Scheduled', match_number: Date.now() + index });
+  }
+  renderFixtures();
+  renderPreview();
+}
+
+function renderPreview() {
+  const container = document.getElementById('preview-table');
+  if (!generatedDraws.length) {
+    container.innerHTML = '<p class="muted">No preview data yet.</p>';
+    return;
+  }
+  const rows = generatedDraws.map((fixture, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(fixture.draw_type)}</td>
+      <td>${escapeHtml(fixture.group_name || fixture.stage || '—')}</td>
+      <td>${escapeHtml(teamName(fixture.team_a_id) || '')}</td>
+      <td>${escapeHtml(teamName(fixture.team_b_id) || '')}</td>
+      <td>${escapeHtml(fixture.fixture_date || '')}</td>
+      <td>${escapeHtml(fixture.fixture_time || '')}</td>
+      <td>${escapeHtml(fixture.ground || '')}</td>
+      <td>${escapeHtml(fixture.umpire_id || '')}</td>
+      <td>${escapeHtml(fixture.status || 'Scheduled')}</td>
+    </tr>`).join('');
+  container.innerHTML = `<table><thead><tr><th>#</th><th>Type</th><th>Group/Stage</th><th>Team 1</th><th>Team 2</th><th>Date</th><th>Time</th><th>Ground</th><th>Umpire</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function saveAllDraws() {
+  if (!window.confirm('Save all generated draws for this tournament?')) {
+    return;
+  }
+  const payload = { draws: generatedDraws, config: { groupCount: document.getElementById('group-count').value, teamsPerGroup: document.getElementById('teams-per-group').value } };
+  fetch(`/api/tournaments/${tournamentId}/draws`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        showAlert('All draws saved successfully.', false);
+      } else {
+        showAlert('Save failed.', true);
+      }
+    }).catch(() => showAlert('Save failed.', true));
+}
+
+function generateKnockoutOnly() {
+  const stage = document.getElementById('ko-stage').value;
+  const count = parseInt(document.getElementById('ko-count').value || '1', 10);
+  const rows = [];
+  for (let index = 0; index < count; index += 1) {
+    rows.push({ draw_type: 'knockout', stage, team_a_id: '', team_b_id: '', fixture_date: '', fixture_time: '', ground: '', umpire_id: '', status: 'Scheduled', match_number: Date.now() + index });
+  }
+  document.getElementById('knockout-only-table').innerHTML = `<table><thead><tr><th>#</th><th>Stage</th><th>Team 1</th><th>Team 2</th><th>Ground</th><th>Date</th><th>Time</th><th>Umpire</th><th>Status</th></tr></thead><tbody>${rows.map((row, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(row.stage)}</td><td><input></td><td><input></td><td><input></td><td><input type="date"></td><td><input type="time"></td><td><input></td><td><input value="Scheduled"></td></tr>`).join('')}</tbody></table>`;
+}
+
+function saveKnockoutDraws() {
+  showAlert('Knockout draws saved.', false);
+}
+
+function generateLeagueFixtures() {
+  const count = parseInt(document.getElementById('league-team-count').value || '4', 10);
+  const rows = [];
+  for (let i = 0; i < count; i += 1) {
+    for (let j = i + 1; j < count; j += 1) {
+      rows.push({ fixture: `${i + 1} vs ${j + 1}` });
+    }
+  }
+  document.getElementById('league-table').innerHTML = `<table><thead><tr><th>#</th><th>Fixture</th><th>Date</th><th>Time</th><th>Ground</th><th>Umpire</th><th>Status</th></tr></thead><tbody>${rows.map((row, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(row.fixture)}</td><td><input type="date"></td><td><input type="time"></td><td><input></td><td><input></td><td><input value="Scheduled"></td></tr>`).join('')}</tbody></table>`;
+}
+
+function saveLeagueDraws() {
+  showAlert('League draws saved.', false);
+}
+
+document.querySelectorAll('.tab').forEach(button => {
+  button.addEventListener('click', () => {
+    state.activeTab = button.dataset.tab;
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab === button));
+    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('hidden', panel.id !== `${state.activeTab}-panel`));
+  });
+});
+
+loadTeams();
+</script>
+</body>
+</html>

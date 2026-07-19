@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body{font-family:Arial, sans-serif;background:#f3f4f6;padding:40px;margin:0}
+    .card{max-width:640px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 20px 40px rgba(15,23,42,.08)}
+    h2{color:#1f2937;margin-top:0}
+    label{display:block;margin:16px 0 6px 0;font-weight:600;color:#1f2937}
+    input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;font-size:14px}
+    input:required,select:required{border-color:#ef4444}
+    .button-container{text-align:right;margin-top:20px}
+    .button-primary{background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .button-primary:hover{background:#1d4ed8}
+    .success-message{background:#dcfce7;border:1px solid #86efac;color:#166534;padding:16px;border-radius:8px;margin-bottom:20px;display:none}
+    .error-message{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:16px;border-radius:8px;margin-bottom:20px;display:none}
+    .form-group{margin-bottom:16px}
+    .required{color:#ef4444}
+  </style>
+  <script>
+    async function loadOptions(){
+      const teamSelect = document.getElementById('team_id');
+      const managerSelect = document.getElementById('manager_id');
+      teamSelect.innerHTML = '<option value="">Loading teams...</option>';
+      managerSelect.innerHTML = '<option value="">Loading managers...</option>';
+      try {
+        const res = await fetch('/api/teams');
+        if (res.ok) {
+          const data = await res.json();
+          teamSelect.innerHTML = '<option value="">Select team</option>';
+          (data.teams || []).forEach(t => { const o = document.createElement('option'); o.value = t.team_id; o.textContent = t.team_name; teamSelect.appendChild(o); });
+        }
+      } catch (err) { showError('Failed to load teams'); }
+      try {
+        const res = await fetch('/api/managers');
+        if (res.ok) {
+          const data = await res.json();
+          managerSelect.innerHTML = '<option value="">Select manager</option>';
+          (data.managers || []).forEach(m => { const o = document.createElement('option'); o.value = m.manager_id; o.textContent = m.name || m.manager_id; managerSelect.appendChild(o); });
+        }
+      } catch (err) { showError('Failed to load managers'); }
+    }
+    async function submitReg(e){
+      e.preventDefault();
+      const token = new URLSearchParams(location.search).get('token');
+      if(!token){
+        showError('Invalid registration link');
+        return;
+      }
+      const data = {
+        player_name: document.getElementById('player_name').value.trim(),
+        team_id: document.getElementById('team_id').value,
+        kkfi_number: document.getElementById('kkfi_number').value.trim(),
+        chest_number: document.getElementById('chest_number').value.trim(),
+        document_url: document.getElementById('document_url').value.trim(),
+        manager_id: document.getElementById('manager_id').value,
+      };
+      // Validate mandatory fields
+      if(!data.player_name||!data.team_id||!data.kkfi_number||!data.manager_id){
+        showError('All fields marked with * are mandatory');
+        return;
+      }
+      const res = await fetch('/register/player?token=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+      });
+      const body = await res.json();
+      if (!res.ok) { 
+        showError(body.error || 'Registration failed'); 
+        return; 
+      }
+      showSuccess(body.message || 'Player registered successfully!');
+      document.getElementById('registration-form').reset();
+      setTimeout(() => { window.location.href = '/'; }, 2000);
+    }
+    function showError(msg){
+      const errorEl = document.getElementById('error-message');
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+      document.getElementById('success-message').style.display = 'none';
+    }
+    function showSuccess(msg){
+      const successEl = document.getElementById('success-message');
+      successEl.textContent = msg;
+      successEl.style.display = 'block';
+      document.getElementById('error-message').style.display = 'none';
+    }
+    window.addEventListener('DOMContentLoaded', () => { loadOptions(); });
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>Player Registration</h2>
+    <div id="success-message" class="success-message"></div>
+    <div id="error-message" class="error-message"></div>
+    <form onsubmit="submitReg(event)" id="registration-form">
+      <div class="form-group">
+        <label>Player Name <span class="required">*</span><input id="player_name" required></label>
+      </div>
+      <div class="form-group">
+        <label>Team <span class="required">*</span><select id="team_id" required></select></label>
+      </div>
+      <div class="form-group">
+        <label>KKFI Number <span class="required">*</span><input id="kkfi_number" required></label>
+      </div>
+      <div class="form-group">
+        <label>Chest Number <input id="chest_number" type="number"></label>
+      </div>
+      <div class="form-group">
+        <label>Manager <span class="required">*</span><select id="manager_id" required></select></label>
+      </div>
+      <div class="form-group">
+        <label>Document URL <input id="document_url"></label>
+      </div>
+      <div class="button-container"><button class="button-primary" type="submit">Register Player</button></div>
+    </form>
+  </div>
+</body>
+</html>

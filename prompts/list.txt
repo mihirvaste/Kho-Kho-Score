@@ -1,0 +1,129 @@
+All you need to change in Tech Team panel
+Now in each there is list in each page 
+
+Pages Names
+# Umpires
+# Managers
+# Teams
+# Players
+
+Now for Umpires
+i want list in the format 
+Umpire ID , Name , Gender ,Age ,KKFI ID ,Phone ,Email, Action
+
+
+Inside action there should be Block, unblock, edit ,delete and send 
+reset password link buttons
+
+if user is blocked then ""Unblocked"" button should be visible
+if user is Unblocked then ""Blocked"" button should be visible
+on click of Block , Unblock , Delete  actions it should show me 
+are you sure about [current action name] and yes no buttons working
+
+On click of send rest password link it should as
+"are you sure you want to send reset password link" and yes no buttons working.
+
+On click of edit it should open the same popup which you are opeing after 
+clicking on Add umpire but with fetched data:
+Umpire ID only visible only when edit but non editable 
+Name , fetch 
+Gender ,fetch
+Age ,fetch
+KKFI ID ,fetch
+Phone ,fetch
+Email, fetch
+Aadhar URL fetch
+Password keep empy
+
+
+###################################################
+
+
+Now for Teams
+i want list in the format 
+
+Team ID, Team Name , Tournament ID , Tournament Name,Address,Manager Name, Manager Phone, KKFI Number,Action
+
+
+Inside action there should be Block, unblock, edit ,delete and send 
+reset password link buttons
+
+if user is blocked then ""Unblocked"" button should be visible
+if user is Unblocked then ""Blocked"" button should be visible
+on click of Block , Unblock , Delete  actions it should show me 
+are you sure about [current action name] and yes no buttons working
+
+On click of send rest password link it should as
+"are you sure you want to send reset password link" and yes no buttons working.
+
+On click of edit it should open the same popup which you are opeing after 
+clicking on Add Manager but with fetched data:
+Team ID only visible only when edit but not editable
+Team Name , fetch 
+Tournament ,fetch
+Address fetch
+Manager fetch
+
+
+################################################################
+Now for Managers
+i want list in the format 
+
+Manager ID, Team Name ,Team ID, Tournament ID , Tournament Name,Address,Manager Name, Manager Phone, KKFI Number,Action
+
+
+Inside action there should be Block, unblock, edit ,delete and send 
+reset password link buttons
+
+if user is blocked then ""Unblocked"" button should be visible
+if user is Unblocked then ""Blocked"" button should be visible
+on click of Block , Unblock , Delete  actions it should show me 
+are you sure about [current action name] and yes no buttons working
+
+On click of send rest password link it should as
+"are you sure you want to send reset password link" and yes no buttons working.
+
+On click of edit it should open the same popup which you are opeing after 
+clicking on Add Manager but with fetched data:
+Manager ID only visible only when edit but not editable
+Name , fetch 
+Gender ,fetch
+Age ,fetch
+KKFI ID ,fetch
+Phone ,fetch
+Email, fetch
+Address fetch
+Password keep empy
+
+
+
+#########################################################################
+
+
+Now for Players
+i want list in the format 
+
+Player ID,Player Name,Chest Numebr, Team Name ,Team ID, Tournament ID , Tournament Name,Manager Name, Manager Phone, KKFI Number,Action
+
+
+Inside action there should be Block, unblock, edit ,delete and send 
+reset password link buttons
+
+if user is blocked then ""Unblocked"" button should be visible
+if user is Unblocked then ""Blocked"" button should be visible
+on click of Block , Unblock , Delete  actions it should show me 
+are you sure about [current action name] and yes no buttons working
+
+On click of send rest password link it should as
+"are you sure you want to send reset password link" and yes no buttons working.
+
+On click of edit it should open the same popup which you are opeing after 
+clicking on Add Manager but with fetched data:
+Player ID only visible only when edit but not editable
+Player Name , fetch 
+KKFI ID ,fetch
+chest Number, fetch
+doc url fetch
+Manager fetch but not editable
+
+

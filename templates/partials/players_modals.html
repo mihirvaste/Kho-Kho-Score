@@ -1,0 +1,15 @@
+<div id="player-modal-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <h2 id="player-modal-title">Add Players</h2>
+    <form id="player-form">
+      <div id="player-id-row" class="hidden"><label>Player ID<input id="player-id" readonly></label></div>
+      <label>Team<select id="player-team"><option value="">Select team</option></select></label>
+      <label>Player Name<input id="player-name" required></label>
+      <label>KKFI Number<input id="player-kkfi-number"></label>
+      <label>Chest Number<input id="player-chest-number" type="number"></label>
+      <label>Document URL<input id="player-document-url"></label>
+      <label>Manager<select id="player-manager"><option value="">Select manager</option></select></label>
+      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:12px"><button type="button" id="player-close-modal">Cancel</button><button class="button-primary" type="submit">Save</button></div>
+    </form>
+  </div>
+</div>

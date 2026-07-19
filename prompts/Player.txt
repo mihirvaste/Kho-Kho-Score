@@ -1,0 +1,52 @@
+You can create seperate file for this code user friendly code or to make code readable
+One click Players form left bar 
+At right side there are few changes (design is almost same)
+Firstly here is the db schema for Player
+**
+Players
+player_id (PK, String, starts with "P...")
+team_id (FK to Teams)
+player_name (string)
+kkfi_number (String, Unique)
+chest_number (Integer)
+document_url (String)
+manager_id (FK to Team_Managers)
+
+
+Now look at the design perspective
+At top there should be Heading Players and at right side there should be 1 button Add Players
+there should be 2 cards
+1. All Players candidates and its number come from db 
+2. Blocked Players candidates and its number come from db
+
+Below this there should be working search bar 
+for below list
+Here is a list which should contain 
+Players_ID  ,team_name(should come from teams table),team_id(should come from teams table), tournament_id(should come from teams table), 
+tournament_name(should come from teams table) ,manager_id,Manager name,Manager_phone,kkfi_number, Players Name,Player chest_number Action
+
+inside action there should be button like block , unblock , delete ,edit
+
+on click of Block , Unblock , Delete  actions it should show me are you sure about [current action name] and yes no buttons working
+if user is blocked then ""Unblocked"" button should be visible
+if user is Unblocked then ""Blocked"" button should be visible
+
+Now there is a Add Players button at top
+on click open popup to Add Players form and save button should be there to save data into database 
+on click of edit button from list opens same popup which with fetched data from database and after editing it should save with same id 
+Form must have below fields:
+
+Players
+player_id (PK, String, starts with "P...")Auto generate while createing while editing it should fectch from database
+team_id (FK to Teams)
+player_name (string)
+kkfi_number (String, Unique)
+chest_number (Integer)
+document_url (String)
+manager_id (FK to Team_Managers)
+
+
+One more thing you need to do is when we click on any card which
+our list should get filtered accordingly 
+for example if i click on the card which is showing blocked Player number then after clicking list should show only blocked Player  similar with  all Player
+

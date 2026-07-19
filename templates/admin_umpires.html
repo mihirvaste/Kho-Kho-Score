@@ -21,17 +21,57 @@
     .card:hover {box-shadow:0 10px 20px rgba(0,0,0,.05);}
     .search-bar {display:flex; gap:12px; margin-bottom:18px;}
     .search-bar input {flex:1; padding:12px 14px; border:1px solid #d1d5db; border-radius:12px;}
-    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden;}
+    .table-wrap {background:#fff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden; overflow-x:auto;}
     table {width:100%; border-collapse:collapse;}
     thead {background:#f9fafb;}
-    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem;}
-    .actions button {margin-right:8px; background:none; border:1px solid #d1d5db; padding:8px 12px; border-radius:10px; cursor:pointer;}
-    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px;}
+    th, td {padding:12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:0.95rem; white-space:nowrap;}
+    .actions button {margin-right:6px; background:none; border:1px solid #d1d5db; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:0.9rem;}
+    .actions button:hover {background:#f3f4f6;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:1000;}
     .modal {background:#fff; border-radius:18px; width:100%; max-width:720px; max-height:90vh; overflow:auto; padding:24px;}
     .hidden {display:none;}
+    .notification {position:fixed; top:20px; right:20px; padding:16px 20px; border-radius:10px; color:#fff; z-index:1001; min-width:300px; display:none; box-shadow:0 4px 12px rgba(0,0,0,.15);}
+    .notification.success {background:#10b981;}
+    .notification.error {background:#ef4444;}
+    .notification.show {display:block; animation:slideIn 0.3s ease-out;}
+    @keyframes slideIn {from {transform:translateX(400px); opacity:0;} to {transform:translateX(0); opacity:1;}}
+    .confirm-dialog {position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:1001;}
+    .confirm-modal {background:#fff; border-radius:12px; padding:24px; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,.2);}
+    .confirm-modal h3 {margin-top:0; color:#111827;}
+    .confirm-modal .actions {display:flex; gap:12px; justify-content:flex-end; margin-top:24px;}
+    .confirm-modal button {padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:600;}
+    .confirm-modal .btn-cancel {background:#e5e7eb; color:#111827;}
+    .confirm-modal .btn-confirm {background:#ef4444; color:#fff;}
   </style>
   <script>
     const umpireState = {blocked: null, q: '', page:1, pageSize:6};
+    let confirmCallback = null;
+
+    function showNotification(message, type = 'success') {
+      const notif = document.getElementById('notification');
+      notif.textContent = message;
+      notif.className = `notification ${type} show`;
+      setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    function showConfirmDialog(message, callback) {
+      const dialog = document.getElementById('confirm-dialog');
+      document.getElementById('confirm-message').textContent = message;
+      dialog.style.display = 'flex';
+      confirmCallback = callback;
+    }
+
+    function confirmYes() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      if (confirmCallback) confirmCallback();
+      confirmCallback = null;
+    }
+
+    function confirmNo() {
+      document.getElementById('confirm-dialog').style.display = 'none';
+      confirmCallback = null;
+    }
+
     function loadUmpireStats(){
       fetch('/api/umpires/stats')
         .then(r=>r.json())
@@ -75,15 +115,15 @@
           tbody.innerHTML = '';
           d.umpires.forEach(u=>{
             const tr = document.createElement('tr');
-            const cols = [u.umpire_id, u.name, u.gender||'', u.age||'', u.kkfi_number||'', u.phone||'', u.email||''];
+            const cols = [u.umpire_id, u.name, u.gender||'-', u.age||'-', u.kkfi_number||'-', u.phone||'-', u.email||'-'];
             cols.forEach(c=>{const td = document.createElement('td'); td.textContent = c; tr.appendChild(td);});
             const actionTd = document.createElement('td'); actionTd.className = 'actions';
             const blockBtn = document.createElement('button'); blockBtn.textContent = u.blocked ? 'Unblock' : 'Block';
-            blockBtn.addEventListener('click', ()=> toggleBlock(u.umpire_id, !u.blocked));
+            blockBtn.addEventListener('click', ()=> toggleBlock(u.umpire_id, !u.blocked, u.name));
             const editBtn = document.createElement('button'); editBtn.textContent = 'Edit'; editBtn.addEventListener('click', ()=> openEdit(u.umpire_id));
-            const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.addEventListener('click', ()=> confirmDelete(u.umpire_id));
-            const resetBtn = document.createElement('button'); resetBtn.textContent = 'Send Reset'; resetBtn.addEventListener('click', ()=> sendReset(u.umpire_id));
-            [blockBtn, editBtn, delBtn, resetBtn].forEach(b=>{b.style.marginRight='8px'; actionTd.appendChild(b);});
+            const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.addEventListener('click', ()=> confirmDelete(u.umpire_id, u.name));
+            const resetBtn = document.createElement('button'); resetBtn.textContent = 'Reset Pwd'; resetBtn.addEventListener('click', ()=> sendReset(u.umpire_id, u.name));
+            [blockBtn, editBtn, delBtn, resetBtn].forEach(b=>{b.style.marginRight='6px'; actionTd.appendChild(b);});
             tr.appendChild(actionTd);
             tbody.appendChild(tr);
           });
@@ -94,6 +134,7 @@
     function openAdd(){
       document.getElementById('umpire-form').reset();
       document.getElementById('umpire-id-row').classList.add('hidden');
+      document.getElementById('umpire-password').value = '';
       document.getElementById('umpire-modal-backdrop').style.display = 'flex';
       document.getElementById('umpire-modal-title').textContent = 'Add Umpire';
     }
@@ -110,25 +151,34 @@
           document.getElementById('umpire-phone').value = u.phone || '';
           document.getElementById('umpire-email').value = u.email || '';
           document.getElementById('umpire-aadhar_photo_url').value = u.aadhar_photo_url || '';
+          document.getElementById('umpire-password').value = '';
           document.getElementById('umpire-modal-backdrop').style.display = 'flex';
           document.getElementById('umpire-modal-title').textContent = 'Edit Umpire';
-        });
+        })
+        .catch(err => showNotification('Failed to load umpire data', 'error'));
     }
-    function confirmDelete(id){
-      if(!confirm('Are you sure you want to delete this umpire?')) return;
-      fetch('/api/umpires/' + id, {method:'DELETE'})
-        .then(()=>{loadUmpireStats(); loadUmpires();});
+    function confirmDelete(id, name){
+      showConfirmDialog(`Are you sure you want to delete umpire "${name}"?`, () => {
+        fetch('/api/umpires/' + id, {method:'DELETE'})
+          .then(r => {if(r.ok) { showNotification('Umpire deleted successfully', 'success'); loadUmpireStats(); loadUmpires(); } else showNotification('Failed to delete', 'error');})
+          .catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
     }
-    function toggleBlock(id, block){
-      if(!confirm('Are you sure you want to ' + (block ? 'block' : 'unblock') + ' this umpire?')) return;
-      fetch('/api/umpires/' + id + '/block', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({blocked:block})})
-        .then(()=>{loadUmpireStats(); loadUmpires();});
+    function toggleBlock(id, block, name){
+      const action = block ? 'block' : 'unblock';
+      showConfirmDialog(`Are you sure you want to ${action} "${name}"?`, () => {
+        fetch('/api/umpires/' + id + '/block', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({blocked:block})})
+          .then(r => {if(r.ok) { showNotification(`Umpire ${action}ed successfully`, 'success'); loadUmpireStats(); loadUmpires(); } else showNotification('Failed to ' + action, 'error');})
+          .catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
     }
-    function sendReset(id){
-      if(!confirm('Send password reset token for this umpire?')) return;
-      fetch('/api/umpires/' + id + '/reset_password', {method:'POST'})
-        .then(r=>r.json())
-        .then(d=>{alert('Reset token: ' + d.token);});
+    function sendReset(id, name){
+      showConfirmDialog(`Send password reset link for "${name}"?`, () => {
+        fetch('/api/umpires/' + id + '/reset_password', {method:'POST'})
+          .then(r=>r.json())
+          .then(d=>{showNotification('Reset link sent successfully! Token: ' + d.token.substring(0, 10) + '...', 'success');})
+          .catch(err => showNotification('Error: ' + err.message, 'error'));
+      });
     }
     async function saveUmpire(e){
       e.preventDefault();
@@ -146,20 +196,22 @@
         let res;
         if(!id){
           data.password = document.getElementById('umpire-password').value;
+          if(!data.password) { showNotification('Password is required for new umpires', 'error'); return; }
           res = await fetch('/api/umpires', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
         } else {
           res = await fetch('/api/umpires/' + id, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
         }
         const body = await res.json().catch(() => null);
         if(!res.ok){
-          alert('Failed to save: ' + (body && (body.error || body.detail) ? (body.error + ' - ' + (body.detail||'')) : res.statusText));
+          showNotification('Failed to save: ' + (body && (body.error || body.detail) ? body.error : res.statusText), 'error');
           return;
         }
+        showNotification(id ? 'Umpire updated successfully' : 'Umpire created successfully', 'success');
         closeUmpireModal();
         loadUmpireStats();
         loadUmpires();
       } catch(err){
-        alert('Network or server error: ' + err.message);
+        showNotification('Error: ' + err.message, 'error');
       }
     }
     function closeUmpireModal(){
@@ -172,7 +224,7 @@
     }
     function createUmpireLink(){
       const sel = document.querySelector('input[name=umpire_link_ttl]:checked');
-      if(!sel){ alert('Select a duration'); return; }
+      if(!sel){ showNotification('Please select a duration', 'error'); return; }
       const seconds = parseInt(sel.value);
       fetch('/api/umpires/links', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({expires_seconds: seconds})})
         .then(r=>r.json())
@@ -180,7 +232,8 @@
           document.getElementById('umpire-generated-link').textContent = d.link;
           document.getElementById('umpire-link-list').classList.add('hidden');
           document.getElementById('umpire-link-result').classList.remove('hidden');
-        });
+        })
+        .catch(err => showNotification('Error: ' + err.message, 'error'));
     }
     window.addEventListener('DOMContentLoaded', ()=>{
       loadUmpireStats();
@@ -192,10 +245,22 @@
       document.getElementById('umpire-close-modal').addEventListener('click', closeUmpireModal);
       document.getElementById('umpire-close-link').addEventListener('click', ()=>{document.getElementById('umpire-link-backdrop').style.display='none';});
       document.getElementById('umpire-close-link-2').addEventListener('click', ()=>{document.getElementById('umpire-link-backdrop').style.display='none';});
+      document.getElementById('confirm-btn-yes').addEventListener('click', confirmYes);
+      document.getElementById('confirm-btn-no').addEventListener('click', confirmNo);
     });
   </script>
 </head>
 <body>
+  <div id="notification" class="notification"></div>
+  <div id="confirm-dialog" class="confirm-dialog">
+    <div class="confirm-modal">
+      <h3 id="confirm-message"></h3>
+      <div class="actions">
+        <button class="btn-cancel" id="confirm-btn-no">No</button>
+        <button class="btn-confirm" id="confirm-btn-yes">Yes</button>
+      </div>
+    </div>
+  </div>
   <div class="layout">
     <!-- include: partials/sidebar.html -->
     <section class="main">

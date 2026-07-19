@@ -1,0 +1,41 @@
+<div class="content">
+  <div class="page-header">
+    <div>
+      <h1>Players</h1>
+      <p>Manage player registrations and approval.</p>
+    </div>
+    <button id="add-player" class="button-primary">Add Players</button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="card" onclick="setPlayerFilter(null)"><h3>All Players candidates</h3><p id="all-player-count">0</p></div>
+    <div class="card" onclick="setPlayerFilter(1)"><h3>Blocked Players candidates</h3><p id="blocked-player-count">0</p></div>
+  </div>
+
+  <div class="search-bar">
+    <input id="player-search" placeholder="Search by ID, player name, team name or KKFI number...">
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Player ID</th>
+          <th>Team Name</th>
+          <th>Team ID</th>
+          <th>Tournament ID</th>
+          <th>Tournament Name</th>
+          <th>Manager ID</th>
+          <th>Manager Name</th>
+          <th>Manager Phone</th>
+          <th>KKFI Number</th>
+          <th>Player Name</th>
+          <th>Chest Number</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="player-body"></tbody>
+    </table>
+    <div id="player-pagination" style="padding:12px;display:flex;gap:8px;justify-content:flex-end"></div>
+  </div>
+</div>

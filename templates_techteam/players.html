@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; }
+    .sidebar .brand { padding: 22px 20px; font-size: 1.05rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    .sidebar nav { flex: 1; padding: 10px 0; }
+    .sidebar a { display: block; color: inherit; text-decoration: none; padding: 12px 20px; }
+    .sidebar a:hover { background: rgba(255,255,255,0.08); }
+    .logout { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.12); }
+    .main { flex: 1; padding: 24px; }
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 20px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .toolbar .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; min-width: 240px; }
+    button { border: none; padding: 10px 12px; border-radius: 10px; cursor: pointer; background: #0369a1; color: white; }
+    button.secondary { background: #10b981; }
+    button:hover { opacity: 0.9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: .8rem; font-weight: 700; }
+    .notification { position: fixed; top: 20px; right: 20px; padding: 16px 20px; border-radius: 10px; color: white; z-index: 1001; min-width: 300px; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease-out; }
+    .notification.success { background: #10b981; }
+    .notification.error { background: #ef4444; }
+    .notification.show { display: block; }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .confirm-dialog { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1001; }
+    .confirm-modal { background: white; border-radius: 12px; padding: 24px; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .confirm-modal h3 { margin-top: 0; color: #111827; }
+    .confirm-modal .actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+    .confirm-modal button { padding: 10px 16px; border-radius: 8px; }
+    .confirm-modal .btn-cancel { background: #e5e7eb; color: #111827; }
+    .confirm-modal .btn-confirm { background: #ef4444; color: white; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+    .modal { background: #fff; border-radius: 18px; width: 100%; max-width: 560px; max-height: 90vh; overflow: auto; padding: 24px; }
+    .modal form { display: grid; gap: 12px; }
+    .modal label { display: flex; flex-direction: column; font-weight: 700; color: #111827; gap: 6px; }
+    .modal input, .modal select { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; }
+    .modal .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="notification" class="notification"></div>
+  <div id="confirm-dialog" class="confirm-dialog">
+    <div class="confirm-modal">
+      <h3 id="confirm-message"></h3>
+      <div class="actions">
+        <button type="button" class="btn-cancel" id="confirm-btn-no">No</button>
+        <button type="button" class="btn-confirm" id="confirm-btn-yes">Yes</button>
+      </div>
+    </div>
+  </div>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Tech Team Panel</div>
+      <nav>
+        <a href="/home">Home</a>
+        <a href="/umpires">Umpire</a>
+        <a href="/managers">Manager</a>
+        <a href="/teams">Teams</a>
+        <a href="/players">Players</a>
+        <a href="/tournaments">Tournament Matches</a>
+      </nav>
+      <div class="logout"><a href="/logout">Logout</a></div>
+    </aside>
+    <section class="main">
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <h1>Players</h1>
+            <p>Review players and quickly spot blocked or active entries.</p>
+          </div>
+          <div class="actions">
+            <button id="open-player-modal">Create Player</button>
+            <button class="secondary" id="open-player-link">Create link</button>
+          </div>
+        </div>
+        <input id="player-search" placeholder="Search player by name or KKFI">
+        <table>
+          <thead><tr><th>Player ID</th><th>Player Name</th><th>Chest Number</th><th>Team Name</th><th>Team ID</th><th>Tournament ID</th><th>Tournament Name</th><th>Manager Name</th><th>Manager Phone</th><th>KKFI Number</th><th>Action</th></tr></thead>
+          <tbody id="player-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <div id="player-modal-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h2 id="player-modal-title">Add Player</h2>
+      <form id="player-form">
+        <label id="player-id-row" class="hidden">Player ID<input id="player-id" readonly></label>
+        <label>Team<select id="player-team"></select></label>
+        <label>Player Name<input id="player-name" required></label>
+        <label>KKFI ID<input id="player-kkfi-number"></label>
+        <label>Chest Number<input id="player-chest-number" type="number"></label>
+        <label>Document URL<input id="player-document-url"></label>
+        <label>Manager<select id="player-manager"></select></label>
+        <div class="actions"><button type="button" id="close-player-modal">Cancel</button><button type="submit">Save</button></div>
+      </form>
+    </div>
+  </div>
+  <div id="player-link-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h2>Create register link for Players</h2>
+      <div id="player-link-list">
+        <p>Select how long the link will be active:</p>
+        <label><input type="radio" name="player_link_ttl" value="3600"> 1 hour</label>
+        <label><input type="radio" name="player_link_ttl" value="10800"> 3 hours</label>
+        <label><input type="radio" name="player_link_ttl" value="21600"> 6 hours</label>
+        <label><input type="radio" name="player_link_ttl" value="43200"> 12 hours</label>
+        <label><input type="radio" name="player_link_ttl" value="86400"> 1 day</label>
+        <label><input type="radio" name="player_link_ttl" value="2592000"> 1 month</label>
+        <div class="actions"><button type="button" onclick="createPlayerLink()">Create link</button><button type="button" id="close-player-link">Cancel</button></div>
+      </div>
+      <div id="player-link-result" class="hidden">
+        <p>Link created:</p>
+        <pre id="player-generated-link" style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap"></pre>
+        <div class="actions"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('player-generated-link').textContent)">Copy</button><button type="button" id="close-player-link-2" onclick="document.getElementById('player-link-backdrop').style.display='none'">Close</button></div>
+      </div>
+    </div>
+  </div>
+<script>
+let confirmCallback = null;
+
+function showNotification(message, type = 'success') {
+  const notif = document.getElementById('notification');
+  notif.textContent = message;
+  notif.className = `notification ${type} show`;
+  setTimeout(() => notif.classList.remove('show'), 3000);
+}
+
+function showConfirmDialog(message, callback) {
+  const dialog = document.getElementById('confirm-dialog');
+  document.getElementById('confirm-message').textContent = message;
+  dialog.style.display = 'flex';
+  confirmCallback = callback;
+}
+
+function confirmYes() {
+  document.getElementById('confirm-dialog').style.display = 'none';
+  if (confirmCallback) confirmCallback();
+  confirmCallback = null;
+}
+
+function confirmNo() {
+  document.getElementById('confirm-dialog').style.display = 'none';
+  confirmCallback = null;
+}
+
+function renderPlayers() {
+  fetch('/api/players').then(res => res.json()).then(data => {
+    const body = document.getElementById('player-body');
+    const query = document.getElementById('player-search').value.toLowerCase();
+    body.innerHTML = '';
+    const filtered = (data.players || []).filter(item => `${item.player_name} ${item.kkfi_number || ''} ${item.team_name || ''}`.toLowerCase().includes(query));
+    filtered.forEach(item => {
+      const row = document.createElement('tr');
+      const actionCell = document.createElement('td');
+      actionCell.className = 'actions-cell';
+
+      const blockBtn = document.createElement('button');
+      blockBtn.textContent = item.blocked ? 'Unblock' : 'Block';
+      blockBtn.onclick = () => toggleBlock(item.player_id, !item.blocked, item.player_name);
+
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = () => openEdit(item.player_id);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = () => confirmDelete(item.player_id, item.player_name);
+
+      const resetBtn = document.createElement('button');
+      resetBtn.textContent = 'Reset Pwd';
+      resetBtn.onclick = () => sendReset(item.player_id, item.player_name);
+
+      actionCell.append(...[blockBtn, editBtn, deleteBtn, resetBtn]);
+
+      row.innerHTML = `<td>${item.player_id || '-'}</td><td>${item.player_name || '—'}</td><td>${item.chest_number || '—'}</td><td>${item.team_name || '—'}</td><td>${item.team_id || '—'}</td><td>${item.tournament_id || '—'}</td><td>${item.tournament_name || '—'}</td><td>${item.manager_name || '—'}</td><td>${item.manager_phone || '—'}</td><td>${item.kkfi_number || '—'}</td>`;
+      row.appendChild(actionCell);
+      body.appendChild(row);
+    });
+  });
+}
+
+function createPlayerLink(){
+  const sel = document.querySelector('input[name=player_link_ttl]:checked');
+  if(!sel){ showNotification('Select a duration', 'error'); return; }
+  const seconds = parseInt(sel.value, 10);
+  fetch('/api/players/links', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({expires_seconds: seconds})}).then(r=>r.json()).then(d=>{
+    document.getElementById('player-generated-link').textContent = d.link;
+    document.getElementById('player-link-list').classList.add('hidden');
+    document.getElementById('player-link-result').classList.remove('hidden');
+  }).catch(err => showNotification('Error: ' + err.message, 'error'));
+}
+
+function loadPlayerOptions() {
+  return Promise.all([fetch('/api/teams').then(r => r.json()), fetch('/api/managers').then(r => r.json())]).then(([teams, managers]) => {
+    const teamSelect = document.getElementById('player-team');
+    const managerSelect = document.getElementById('player-manager');
+    teamSelect.innerHTML = '<option value="">Select team</option>' + ((teams.teams || []).map(item => `<option value="${item.team_id}">${item.team_name}</option>`)).join('');
+    managerSelect.innerHTML = '<option value="">Select manager</option>' + ((managers.managers || []).map(item => `<option value="${item.manager_id}">${item.name}</option>`)).join('');
+  });
+}
+
+function openAdd() {
+  document.getElementById('player-form').reset();
+  document.getElementById('player-id-row').classList.add('hidden');
+  document.getElementById('player-id').value = '';
+  document.getElementById('player-modal-title').textContent = 'Add Player';
+  document.getElementById('player-manager').disabled = false;
+  document.getElementById('player-modal-backdrop').style.display = 'flex';
+}
+
+function openEdit(id) {
+  loadPlayerOptions().then(() => {
+    fetch('/api/players/' + id).then(r => r.json()).then(item => {
+      document.getElementById('player-id-row').classList.remove('hidden');
+      document.getElementById('player-id').value = item.player_id || '';
+      document.getElementById('player-team').value = item.team_id || '';
+      document.getElementById('player-name').value = item.player_name || '';
+      document.getElementById('player-kkfi-number').value = item.kkfi_number || '';
+      document.getElementById('player-chest-number').value = item.chest_number || '';
+      document.getElementById('player-document-url').value = item.document_url || '';
+      document.getElementById('player-manager').value = item.manager_id || '';
+      document.getElementById('player-manager').disabled = true;
+      document.getElementById('player-modal-title').textContent = 'Edit Player';
+      document.getElementById('player-modal-backdrop').style.display = 'flex';
+    }).catch(err => showNotification('Failed to load player data', 'error'));
+  });
+}
+
+function confirmDelete(id, name) {
+  showConfirmDialog(`Are you sure you want to delete "${name}"?`, () => {
+    fetch('/api/players/' + id, {method: 'DELETE'}).then(r => {
+      if (r.ok) { showNotification('Player deleted successfully', 'success'); renderPlayers(); }
+      else { showNotification('Failed to delete player', 'error'); }
+    }).catch(err => showNotification('Error: ' + err.message, 'error'));
+  });
+}
+
+function toggleBlock(id, blocked, name) {
+  const action = blocked ? 'block' : 'unblock';
+  showConfirmDialog(`Are you sure you want to ${action} "${name}"?`, () => {
+    fetch('/api/players/' + id + '/block', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({blocked})}).then(r => {
+      if (r.ok) { showNotification(`Player ${action}ed successfully`, 'success'); renderPlayers(); }
+      else { showNotification('Failed to update player status', 'error'); }
+    }).catch(err => showNotification('Error: ' + err.message, 'error'));
+  });
+}
+
+function sendReset(id, name) {
+  showConfirmDialog('Are you sure you want to send the reset password link?', () => {
+    fetch('/api/players/' + id + '/reset_password', {method: 'POST'}).then(r => {
+      if (r.ok) { showNotification('Reset link sent successfully', 'success'); }
+      else { showNotification('Failed to send reset link', 'error'); }
+    }).catch(err => showNotification('Error: ' + err.message, 'error'));
+  });
+}
+
+document.getElementById('player-search').addEventListener('input', renderPlayers);
+document.getElementById('open-player-modal').addEventListener('click', openAdd);
+document.getElementById('close-player-modal').addEventListener('click', () => document.getElementById('player-modal-backdrop').style.display = 'none');
+document.getElementById('open-player-link').addEventListener('click', () => {
+  document.getElementById('player-link-list').classList.remove('hidden');
+  document.getElementById('player-link-result').classList.add('hidden');
+  document.getElementById('player-link-backdrop').style.display = 'flex';
+});
+document.getElementById('close-player-link').addEventListener('click', () => document.getElementById('player-link-backdrop').style.display = 'none');
+document.getElementById('player-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  const id = document.getElementById('player-id').value;
+  const payload = {
+    team_id: document.getElementById('player-team').value,
+    player_name: document.getElementById('player-name').value,
+    kkfi_number: document.getElementById('player-kkfi-number').value,
+    chest_number: document.getElementById('player-chest-number').value,
+    document_url: document.getElementById('player-document-url').value,
+    manager_id: document.getElementById('player-manager').value
+  };
+  const method = id ? 'PUT' : 'POST';
+  const url = id ? '/api/players/' + id : '/api/players';
+  fetch(url, {method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)}).then(r => {
+    if (r.ok) { showNotification(id ? 'Player updated successfully' : 'Player created successfully', 'success'); this.reset(); document.getElementById('player-modal-backdrop').style.display='none'; renderPlayers(); }
+    else { showNotification('Failed to save player', 'error'); }
+  }).catch(err => showNotification('Error: ' + err.message, 'error'));
+});
+document.getElementById('confirm-btn-yes').addEventListener('click', confirmYes);
+document.getElementById('confirm-btn-no').addEventListener('click', confirmNo);
+document.getElementById('confirm-dialog').addEventListener('click', function(event) {
+  if (event.target.id === 'confirm-dialog') {
+    confirmNo();
+  }
+});
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape' && document.getElementById('confirm-dialog').style.display === 'flex') {
+    confirmNo();
+  }
+});
+loadPlayerOptions();
+renderPlayers();
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; }
+    .sidebar .brand { padding: 22px 20px; font-size: 1.05rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    .sidebar nav { flex: 1; padding: 10px 0; }
+    .sidebar a { display: block; color: inherit; text-decoration: none; padding: 12px 20px; }
+    .sidebar a:hover { background: rgba(255,255,255,0.08); }
+    .logout { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.12); }
+    .main { flex: 1; padding: 24px; }
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 20px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .toolbar .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { border: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; background: #0369a1; color: white; }
+    button.secondary { background: #10b981; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Tech Team Panel</div>
+      <nav>
+        <a href="/home">Home</a>
+        <a href="/umpires">Umpires</a>
+        <a href="/managers">Managers</a>
+        <a href="/players">Players</a>
+        <a href="/tournaments">Tournament Matches</a>
+      </nav>
+      <div class="logout"><a href="/logout">Logout</a></div>
+    </aside>
+    <section class="main">
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <h1>Matches</h1>
+            <p>Tournament ID: {{ tournament_id }}</p>
+          </div>
+          <div class="actions">
+            <button onclick="createMatch()">Create Match</button>
+            <button class="secondary">Create link</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>Group</th><th>Teams</th><th>Status</th><th>Winner</th></tr></thead>
+          <tbody id="matches-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+<script>
+const tournamentId = '{{ tournament_id }}';
+function loadMatches() {
+  fetch('/api/matches').then(res => res.json()).then(data => {
+    const body = document.getElementById('matches-body');
+    body.innerHTML = '';
+    const filtered = data.filter(item => item.tournament_id === tournamentId);
+    filtered.forEach(item => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${item.match_number}</td><td>${item.group_name || '—'}</td><td>${item.team_a_id || '—'} vs ${item.team_b_id || '—'}</td><td>${item.match_status || 'pending'}</td><td>${item.final_winner_id || '—'}</td>`;
+      body.appendChild(row);
+    });
+  });
+}
+function createMatch() {
+  const payload = {
+    match_number: Date.now() % 1000,
+    tournament_id: tournamentId,
+    group_name: 'Group A',
+    team_a_id: 'T1',
+    team_b_id: 'T2',
+    match_status: 'pending',
+    is_follow_on_enforced: false,
+    final_winner_id: '',
+    win_type: '',
+    win_margin: ''
+  };
+  fetch('/api/matches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => loadMatches());
+}
+loadMatches();
+</script>
+</body>
+</html>

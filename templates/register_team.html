@@ -31,11 +31,44 @@
       alert('Team registered: ' + body.team_id);
     }
 
-    function loadTournaments(){
-      fetch('/api/tournaments').then(r=>r.json()).then(d=>{ const sel = document.getElementById('tournament_id'); sel.innerHTML=''; d.tournaments.forEach(t=>{ const o=document.createElement('option'); o.value=t.tournament_id; o.textContent=t.name; sel.appendChild(o); }); });
+    async function loadOptions(){
+      const tournamentSelect = document.getElementById('tournament_id');
+      const managerSelect = document.getElementById('manager_id');
+      tournamentSelect.innerHTML = '<option value="">Select tournament</option>';
+      managerSelect.innerHTML = '<option value="">Select manager</option>';
+
+      try {
+        const res = await fetch('/api/tournaments');
+        if (res.ok) {
+          const data = await res.json();
+          (data.tournaments || []).forEach(t => {
+            const o = document.createElement('option');
+            o.value = t.tournament_id;
+            o.textContent = t.name;
+            tournamentSelect.appendChild(o);
+          });
+        }
+      } catch (err) {
+        console.error('Unable to load tournaments', err);
+      }
+
+      try {
+        const res = await fetch('/api/managers');
+        if (res.ok) {
+          const data = await res.json();
+          (data.managers || []).forEach(m => {
+            const o = document.createElement('option');
+            o.value = m.manager_id;
+            o.textContent = m.name || m.manager_id;
+            managerSelect.appendChild(o);
+          });
+        }
+      } catch (err) {
+        console.error('Unable to load managers', err);
+      }
     }
 
-    window.addEventListener('DOMContentLoaded', ()=>{ loadTournaments(); });
+    window.addEventListener('DOMContentLoaded', () => { loadOptions(); });
   </script>
 </head>
 <body>
