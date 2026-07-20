@@ -74,6 +74,9 @@ class TechTeamPortalTests(unittest.TestCase):
         self.assertIn(b"League", rendered)
         self.assertIn(b"Tournament Configuration", rendered)
         self.assertIn(b"Generate Fixtures", rendered)
+        self.assertIn(b"Live Bracket", rendered)
+        self.assertIn(b"Save Draw", rendered)
+        self.assertIn(b"Download PNG", rendered)
 
     def test_get_tournament_draws_returns_defaults(self):
         tech_team_app.setup_database()

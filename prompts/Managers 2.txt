@@ -1,0 +1,75 @@
+Now Only focus on Group stage
+go to 
+Step 5 - Knockout Draw Builder
+Final
+    Semifinal
+        quater Final
+            prequater Final
+
+
+this is the hairarchy for draws
+so when i select any of these and build next time it should not show its below child 
+means if i select quater final and hit build 
+then next time it should not show me prequater and quater
+similarly if i select Semifinal and hit build
+then next time it should not show me semi , prequater and quater
+similarly if i select final and hit build
+then next time it should not show me any of these
+
+Remove Number of Matches option
+prequater has 8 matches so 16 team will get chosen winners and seconds 
+quater means 4 matches so 8 teams will get choose all winners
+semi final means 2 matches so 4 teams will get choose all winners
+final means 1 matches so 2 teams will get choose all winners
+
+here i am providing you an image how draws actually should look like
+accordingly it should show in live bracket 
+
+#######################################################################
+
+Now Only focus on Group stage
+go to 
+Step 5 - Knockout Draw Builder
+
+When i choose prequater it is should show me list (8 matches,16 teams)
+#,Group Name(auto generate names like [AA,BB,CC,DD]), stage ,select Winner of group , select runnerup of group , select umpire 
+
+When i choose quater it is should show me list (4 matches ,  8 teams)
+if prequater is selected before this
+#,Group Name(auto generate names like [Q1,Q2,Q3,Q4]), stage ,select Winner of group (auto generated names in prequater [AA,BB,CC,DD]) , select Winner of group (auto generated names in prequater [AA,BB,CC,DD]), select umpire 
+if prequater is not selected before this
+#,Group Name(auto generate names like [Q1,Q2,Q3,Q4]), stage ,select Winner of group , select Winner of group , select umpire 
+
+
+When i choose Semifinal it is should show me list (2 matches ,  4 teams)
+if prequater is selected before this
+#,Group Name(auto generate names like [Semi 1, Semi 2]), stage ,select Winner of group (auto generated names in quater [q1,q2,q3,q4]) , select Winner of group (auto generated names in quater [Q1,q2,q3,q4]), select umpire 
+if prequater is not selected before this
+#,Group Name(auto generate names like [Semi 1, Semi 2]), stage ,select Winner of group , select Winner of group , select umpire 
+
+
+When i choose final it is should show me list (1 matches ,  2 teams)
+if semifinal is selected before this
+#,Group Name(Final), stage ,select Winner of group (auto generated names in semifinal [Semi1,semi2]) , select Winner of group (auto generated names in semifinal [Semi1,semi2]), select umpire 
+if semifinal is selected before this
+#,Group Name(Final), stage ,select Winner of group , select Winner of group , select umpire 
+
+There should be button at the end after selection of Current Stage named "Go to live bucket"
+After clicking on it should go to live bucket
+
+means if i choose prequater select teams and umpire and click on go to live bucket then only it should go to live bucket
+means if i choose quater select teams and umpire and click on go to live bucket then only it should go to live bucket
+means if i choose semi select teams and umpire and click on go to live bucket then only it should go to live bucket
+means if i choose final select teams and umpire and click on go to live bucket then only it should go to live bucket
+
+########################
+Now Only focus on Group stage
+go to
+Step 5 - Knockout Draw Builder
+
+when i select prequater i want only 8 in list
+when i select quarter i want only 4 in list
+when i select semi i want only 2 in list
+when i select final i want only 1 in list
+
+go to live bucket button should be working

@@ -304,7 +304,8 @@ def load_template(name, **context):
         if alt_path.exists():
             path = alt_path
     content = path.read_text(encoding="utf-8")
-    pattern = re.compile(r"<!--\s*include:\s*([^\s]+)\s*-->")
+    include_pattern = re.compile(r"<!--\s*include:\s*([^\s]+)\s*-->")
+    var_pattern = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 
     def expand_includes(text):
         def _inc(match):
@@ -316,11 +317,14 @@ def load_template(name, **context):
             except Exception:
                 return ""
 
-        return pattern.sub(_inc, text)
+        return include_pattern.sub(_inc, text)
+
+    def replace_var(match):
+        var_name = match.group(1)
+        return str(context.get(var_name, match.group(0)))
 
     content = expand_includes(content)
-    for key, value in context.items():
-        content = content.replace("{{" + key + "}}", str(value))
+    content = var_pattern.sub(replace_var, content)
     return content.encode("utf-8")
 
 
