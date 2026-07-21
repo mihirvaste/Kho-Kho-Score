@@ -100,11 +100,15 @@ function loadTournaments() {
   fetch('/api/tournaments').then(res => res.json()).then(data => {
     const container = document.getElementById('tournaments');
     container.innerHTML = '';
-    data.forEach(item => {
-      const card = document.createElement('div');
-      card.className = 'tournament-card';
-      card.innerHTML = `<h3>${item.name}</h3><div>${item.start_date} → ${item.end_date}</div><div>Status: ${item.status}</div><div class="actions"><button onclick="location.href='/tournaments/${item.tournament_id}'">View Matches</button></div>`;
-      container.appendChild(card);
+    Promise.all(data.map(item =>
+      fetch(`/api/matches?tournament_id=${encodeURIComponent(item.tournament_id)}`).then(res => res.json()).then(matches => ({item, hasDraws: matches.length > 0}))
+    )).then(results => {
+      results.forEach(({item, hasDraws}) => {
+        const card = document.createElement('div');
+        card.className = 'tournament-card';
+        card.innerHTML = `<h3>${item.name}</h3><div>${item.start_date} → ${item.end_date}</div><div>Status: ${item.status}</div><div class="actions"><button onclick="location.href='/tournaments/${item.tournament_id}'">View Matches</button>${hasDraws ? `<button class="secondary" onclick="location.href='/tournaments/${item.tournament_id}/draws-view'">View Draw</button>` : ''}</div>`;
+        container.appendChild(card);
+      });
     });
   });
 }

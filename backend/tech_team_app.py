@@ -8,6 +8,7 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http import cookies
 from urllib.parse import parse_qs, urlparse
+# Draws system removed: no draw_services import
 
 HOST = "127.0.0.1"
 PORT = 8001
@@ -52,9 +53,26 @@ def setup_database():
             "token TEXT PRIMARY KEY, expires_at TEXT NOT NULL, used INTEGER DEFAULT 0, role TEXT NOT NULL)"
         )
         db.execute(
-            "CREATE TABLE IF NOT EXISTS tournament_draws ("
-            "draw_id TEXT PRIMARY KEY, tournament_id TEXT NOT NULL, draw_type TEXT NOT NULL, stage TEXT, group_name TEXT, team_a_id TEXT, team_b_id TEXT, match_number INTEGER, fixture_date TEXT, fixture_time TEXT, ground TEXT, umpire_id TEXT, status TEXT DEFAULT 'Scheduled', config_json TEXT, teams_json TEXT, created_at TEXT NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS matches (match_id TEXT PRIMARY KEY, draw_id TEXT, match_number INTEGER NOT NULL, tournament_id TEXT, group_name TEXT, stage_name TEXT, team_a_id TEXT, team_b_id TEXT, match_status TEXT, is_follow_on_enforced INTEGER DEFAULT 0, final_winner_id TEXT, win_type TEXT, win_margin TEXT, umpire_id TEXT)"
         )
+        cursor = db.execute("PRAGMA table_info(matches)").fetchall()
+        columns = [row[1] for row in cursor]
+        if 'umpire_id' not in columns:
+            try:
+                db.execute("ALTER TABLE matches ADD COLUMN umpire_id TEXT")
+            except sqlite3.OperationalError:
+                pass
+        if 'draw_id' not in columns:
+            try:
+                db.execute("ALTER TABLE matches ADD COLUMN draw_id TEXT")
+            except sqlite3.OperationalError:
+                pass
+        if 'stage_name' not in columns:
+            try:
+                db.execute("ALTER TABLE matches ADD COLUMN stage_name TEXT")
+            except sqlite3.OperationalError:
+                pass
+        # tournament_draws table removed along with draws feature
         if not db.execute("SELECT 1 FROM techteams WHERE tt_id = ?", ("TT0001",)).fetchone():
             db.execute(
                 "INSERT INTO techteams (tt_id, name, password_hash, age, gender, kkfi_number, phone, email, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
@@ -128,73 +146,7 @@ def create_player(data):
     return {"player_id": player_id, "player_name": data.get("player_name"), "team_id": data.get("team_id")}
 
 
-def get_tournament_draws(tournament_id):
-    with sqlite3.connect(DB_PATH) as db:
-        rows = db.execute(
-            "SELECT draw_id, tournament_id, draw_type, stage, group_name, team_a_id, team_b_id, match_number, fixture_date, fixture_time, ground, umpire_id, status, config_json, teams_json, created_at FROM tournament_draws WHERE tournament_id = ? ORDER BY created_at ASC, match_number ASC",
-            (tournament_id,),
-        ).fetchall()
-    draws = []
-    config = {}
-    for row in rows:
-        item = {
-            "draw_id": row[0],
-            "tournament_id": row[1],
-            "draw_type": row[2],
-            "stage": row[3],
-            "group_name": row[4],
-            "team_a_id": row[5],
-            "team_b_id": row[6],
-            "match_number": row[7],
-            "fixture_date": row[8],
-            "fixture_time": row[9],
-            "ground": row[10],
-            "umpire_id": row[11],
-            "status": row[12],
-            "config_json": row[13],
-            "teams_json": row[14],
-            "created_at": row[15],
-        }
-        if item["config_json"]:
-            try:
-                config = json.loads(item["config_json"])
-            except json.JSONDecodeError:
-                config = {}
-        draws.append(item)
-    return {"tournament_id": tournament_id, "draws": draws, "config": config}
-
-
-def save_tournament_draws(tournament_id, payload):
-    draws = payload.get("draws", []) or []
-    config = payload.get("config", {}) or {}
-    with sqlite3.connect(DB_PATH) as db:
-        db.execute("DELETE FROM tournament_draws WHERE tournament_id = ?", (tournament_id,))
-        row = db.execute("SELECT MAX(CAST(SUBSTR(draw_id, 3) AS INTEGER)) FROM tournament_draws").fetchone()
-        max_index = row[0] if row and row[0] is not None else 0
-        for index, item in enumerate(draws, start=1):
-            draw_id = f"DR{max_index + index:04d}"
-            db.execute(
-                "INSERT INTO tournament_draws (draw_id, tournament_id, draw_type, stage, group_name, team_a_id, team_b_id, match_number, fixture_date, fixture_time, ground, umpire_id, status, config_json, teams_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    draw_id,
-                    tournament_id,
-                    item.get("draw_type", "group"),
-                    item.get("stage"),
-                    item.get("group_name"),
-                    item.get("team_a_id"),
-                    item.get("team_b_id"),
-                    item.get("match_number"),
-                    item.get("fixture_date"),
-                    item.get("fixture_time"),
-                    item.get("ground"),
-                    item.get("umpire_id"),
-                    item.get("status") or "Scheduled",
-                    json.dumps(config),
-                    json.dumps(item.get("teams_json") or []),
-                    datetime.datetime.utcnow().isoformat(),
-                ),
-            )
-    return {"success": True, "tournament_id": tournament_id}
+# Draws persistence and APIs removed
 
 
 def get_dashboard_stats():
@@ -204,6 +156,73 @@ def get_dashboard_stats():
         players = db.execute("SELECT COUNT(*) FROM players").fetchone()[0]
         tournaments = db.execute("SELECT COUNT(*) FROM tournaments").fetchone()[0]
     return {"umpires": umpires, "managers": managers, "players": players, "tournaments": tournaments}
+
+
+def save_draws(tournament_id, payload):
+    draws = payload.get('draws', []) or []
+    scope = payload.get('scope')
+    if scope not in ('group', 'manual'):
+        return {'success': False, 'error': 'Invalid save scope'}
+
+    # basic validation: no duplicate matches, teams not playing against themselves
+    seen = set()
+    for d in draws:
+        a = d.get('team_a_id')
+        b = d.get('team_b_id')
+        if not a or not b:
+            return {'success': False, 'error': 'Each fixture must have two teams'}
+        if a == b:
+            return {'success': False, 'error': 'A team cannot play itself'}
+        # key = tuple(sorted([a, b])) + ((d.get('group_name') or '') if scope == 'group' else ('Manual',))
+        group_key = (
+            d.get("group_name") or ""
+            if scope == "group"
+            else "Manual"
+        )
+        key = tuple(sorted((str(a), str(b)))) + (group_key,)
+
+        if key in seen:
+            return {'success': False, 'error': 'Duplicate fixture detected'}
+        seen.add(key)
+
+    delete_condition = "group_name != 'Manual'" if scope == 'group' else "group_name = 'Manual'"
+    try:
+        with sqlite3.connect(DB_PATH) as db:
+            cur = db.cursor()
+            cur.execute(f'DELETE FROM matches WHERE tournament_id = ? AND {delete_condition}', (tournament_id,))
+            row = cur.execute("SELECT MAX(CAST(SUBSTR(match_id, 3) AS INTEGER)) FROM matches").fetchone()
+            max_index = row[0] if row and row[0] is not None else 0
+            draw_id = f"DW{tournament_id[2:] if tournament_id.startswith('KT') else tournament_id}"
+            for i, d in enumerate(draws, start=1):
+                match_id = f"TM{max_index + i:04d}"
+                stage_name = d.get('stage_name') or d.get('group_name') or ('Manual' if scope == 'manual' else None)
+                cur.execute(
+                    "INSERT INTO matches (match_id, draw_id, match_number, tournament_id, group_name, stage_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin, umpire_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        match_id,
+                        draw_id,
+                        d.get('match_number') or i,
+                        tournament_id,
+                        d.get('group_name') or stage_name,
+                        stage_name,
+                        d.get('team_a_id'),
+                        d.get('team_b_id'),
+                        d.get('match_status') or None,
+                        1 if d.get('is_follow_on_enforced') else 0,
+                        d.get('final_winner_id') or None,
+                        d.get('win_type') or None,
+                        d.get('win_margin') or None,
+                        d.get('umpire_id') or None,
+                    )
+                )
+            db.commit()
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {'success': False, 'error': str(e)}
+    return {'success': True, 'tournament_id': tournament_id}
 
 
 def get_manager_rows():
@@ -381,11 +400,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_html(load_template("tournaments.html", title="Tournament Matches"))
             return
 
+        if path.startswith("/tournaments/") and path.endswith("/draws-view") and self.session_token() in SESSIONS:
+            segments = [segment for segment in path.split("/") if segment]
+            if len(segments) == 3 and segments[0] == "tournaments" and segments[2] == "draws-view":
+                tournament_id = segments[1]
+                with sqlite3.connect(DB_PATH) as db:
+                    tournament_name = db.execute("SELECT name FROM tournaments WHERE tournament_id = ?", (tournament_id,)).fetchone()
+                tournament_name = tournament_name[0] if tournament_name else tournament_id
+                self.send_html(load_template("draws_view.html", title=f"Draws - {tournament_name}", tournament_name=tournament_name, tournament_id=tournament_id))
+                return
+
         if path.startswith("/tournaments/") and self.session_token() in SESSIONS:
             tournament_id = path.strip("/").split("/")[-1]
             with sqlite3.connect(DB_PATH) as db:
                 tournament_name = db.execute("SELECT name FROM tournaments WHERE tournament_id = ?", (tournament_id,)).fetchone()
             tournament_name = tournament_name[0] if tournament_name else tournament_id
+            # Serve the draws UI (Group Stage focused)
             self.send_html(load_template("draws.html", title=f"Create Draws - {tournament_name}", tournament_name=tournament_name, tournament_id=tournament_id))
             return
 
@@ -511,27 +541,49 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/matches":
+            query = parse_qs(parsed.query)
+            tournament_id = query.get("tournament_id", [None])[0]
+            if tournament_id:
+                with sqlite3.connect(DB_PATH) as db:
+                    rows = db.execute(
+                        "SELECT m.match_id, m.draw_id, m.match_number, m.tournament_id, COALESCE(m.stage_name, m.group_name) AS stage_name, m.team_a_id, m.team_b_id, m.match_status, m.is_follow_on_enforced, m.final_winner_id, m.win_type, m.win_margin, t_a.team_name, t_b.team_name, m.umpire_id "
+                        "FROM matches m "
+                        "LEFT JOIN teams t_a ON t_a.team_id = m.team_a_id "
+                        "LEFT JOIN teams t_b ON t_b.team_id = m.team_b_id "
+                        "WHERE m.tournament_id = ? ORDER BY m.match_number ASC",
+                        (tournament_id,)
+                    ).fetchall()
+                send_json(self, [{
+                    "match_id": r[0],
+                    "draw_id": r[1] or "",
+                    "match_number": r[2],
+                    "tournament_id": r[3],
+                    "stage_name": r[4],
+                    "team_a_id": r[5],
+                    "team_b_id": r[6],
+                    "match_status": r[7],
+                    "is_follow_on_enforced": bool(r[8]),
+                    "final_winner_id": r[9],
+                    "win_type": r[10],
+                    "win_margin": r[11],
+                    "team_a_name": r[12] or "",
+                    "team_b_name": r[13] or "",
+                    "umpire_id": r[14] or ""
+                } for r in rows])
+                return
             with sqlite3.connect(DB_PATH) as db:
-                rows = db.execute("SELECT match_id, match_number, tournament_id, group_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin FROM matches ORDER BY match_number ASC").fetchall()
-            send_json(self, [{"match_id": r[0], "match_number": r[1], "tournament_id": r[2], "group_name": r[3], "team_a_id": r[4], "team_b_id": r[5], "match_status": r[6], "is_follow_on_enforced": bool(r[7]), "final_winner_id": r[8], "win_type": r[9], "win_margin": r[10]} for r in rows])
+                rows = db.execute("SELECT match_id, draw_id, match_number, tournament_id, COALESCE(stage_name, group_name) AS stage_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin, umpire_id FROM matches ORDER BY match_number ASC").fetchall()
+            send_json(self, [{"match_id": r[0], "draw_id": r[1] or "", "match_number": r[2], "tournament_id": r[3], "stage_name": r[4], "team_a_id": r[5], "team_b_id": r[6], "match_status": r[7], "is_follow_on_enforced": bool(r[8]), "final_winner_id": r[9], "win_type": r[10], "win_margin": r[11], "umpire_id": r[12] or ""} for r in rows])
             return
 
-        if path.startswith("/api/tournaments/") and path.endswith("/draws"):
-            segments = [segment for segment in path.split("/") if segment]
-            if len(segments) == 4 and segments[0] == "api" and segments[1] == "tournaments" and segments[3] == "draws":
-                tournament_id = segments[2]
-                if self.session_token() not in SESSIONS:
-                    send_json(self, {"error": "Unauthorized"}, status=401)
-                    return
-                send_json(self, get_tournament_draws(tournament_id))
-                return
+        # Draws API removed
 
         if path.startswith("/api/matches/"):
             match_id = path.rsplit("/", 1)[-1]
             with sqlite3.connect(DB_PATH) as db:
-                row = db.execute("SELECT match_id, match_number, tournament_id, group_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin FROM matches WHERE match_id = ?", (match_id,)).fetchone()
+                row = db.execute("SELECT match_id, draw_id, match_number, tournament_id, COALESCE(stage_name, group_name) AS stage_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin, umpire_id FROM matches WHERE match_id = ?", (match_id,)).fetchone()
             if row:
-                send_json(self, {"match_id": row[0], "match_number": row[1], "tournament_id": row[2], "group_name": row[3], "team_a_id": row[4], "team_b_id": row[5], "match_status": row[6], "is_follow_on_enforced": bool(row[7]), "final_winner_id": row[8], "win_type": row[9], "win_margin": row[10]})
+                send_json(self, {"match_id": row[0], "draw_id": row[1] or "", "match_number": row[2], "tournament_id": row[3], "stage_name": row[4], "team_a_id": row[5], "team_b_id": row[6], "match_status": row[7], "is_follow_on_enforced": bool(row[8]), "final_winner_id": row[9], "win_type": row[10], "win_margin": row[11], "umpire_id": row[12] or ""})
             else:
                 send_json(self, {"error": "Not found"}, status=404)
             return
@@ -685,12 +737,24 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, {"tournament_id": tournament_id}, status=201)
             return
 
+        if path == "/api/matches/batch" and self.session_token() in SESSIONS:
+            data = parse_json_body(self, length)
+            tournament_id = data.get("tournament_id")
+            draws = data.get("draws", [])
+            scope = data.get("scope")
+            if not tournament_id or not isinstance(draws, list):
+                send_json(self, {"success": False, "error": "Invalid match save payload"}, status=400)
+                return
+            send_json(self, save_draws(tournament_id, {"draws": draws, "scope": scope or "group"}), status=201)
+            return
+
+        # Save draws for a tournament (group/manual payloads)
         if path.startswith("/api/tournaments/") and path.endswith("/draws") and self.session_token() in SESSIONS:
             segments = [segment for segment in path.split("/") if segment]
             if len(segments) == 4 and segments[0] == "api" and segments[1] == "tournaments" and segments[3] == "draws":
                 tournament_id = segments[2]
                 data = parse_json_body(self, length)
-                send_json(self, save_tournament_draws(tournament_id, data), status=201)
+                send_json(self, save_draws(tournament_id, data), status=201)
                 return
 
         if path == "/api/managers/links" and self.session_token() in SESSIONS:
@@ -987,8 +1051,6 @@ class Handler(BaseHTTPRequestHandler):
 
 def run():
     setup_database()
-    with sqlite3.connect(DB_PATH) as db:
-        db.execute("CREATE TABLE IF NOT EXISTS matches (match_id TEXT PRIMARY KEY, match_number INTEGER NOT NULL, tournament_id TEXT, group_name TEXT, team_a_id TEXT, team_b_id TEXT, match_status TEXT, is_follow_on_enforced INTEGER DEFAULT 0, final_winner_id TEXT, win_type TEXT, win_margin TEXT)")
     print(f"Tech team app running at http://{HOST}:{PORT}")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 

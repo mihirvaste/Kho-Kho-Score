@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Draws - {{ tournament_name }}</title>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#f3f4f6; color:#111827; }
+    .layout { display:flex; min-height:100vh; }
+    .sidebar { width:260px; background:#0f172a; color:#f8fafc; display:flex; flex-direction:column; }
+    .sidebar .brand { padding:22px 20px; font-size:1.05rem; font-weight:700; border-bottom:1px solid rgba(255,255,255,.12); }
+    .sidebar nav { flex:1; padding:10px 0; }
+    .sidebar a { display:block; color:inherit; text-decoration:none; padding:12px 20px; }
+    .sidebar a:hover { background:rgba(255,255,255,.08); }
+    .main { flex:1; padding:24px; }
+    .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    .toolbar h1 { margin:0; font-size:1.8rem; }
+    .toolbar input { padding:10px 14px; border-radius:12px; border:1px solid #d1d5db; width:320px; max-width:100%; }
+    .card { background:#fff; border-radius:16px; border:1px solid #e5e7eb; padding:20px; }
+    .table-wrapper { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:14px 12px; border:1px solid #e5e7eb; text-align:left; }
+    th { background:#f3f4f6; }
+    .muted { color:#6b7280; }
+    button { border:none; background:#2563eb; color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer; }
+    .secondary { background:#10b981; }
+    .empty-state { padding:40px; text-align:center; color:#6b7280; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Tech Team Panel</div>
+      <nav>
+        <a href="/home">Home</a>
+        <a href="/umpires">Umpire</a>
+        <a href="/managers">Manager</a>
+        <a href="/teams">Teams</a>
+        <a href="/players">Players</a>
+        <a href="/tournaments">Tournament Matches</a>
+      </nav>
+      <div class="logout"><a href="/logout" style="padding:12px 20px; display:block; color:inherit;">Logout</a></div>
+    </aside>
+    <section class="main">
+      <div class="toolbar">
+        <div>
+          <h1>{{ tournament_name }}</h1>
+          <div class="muted">Draws</div>
+        </div>
+        <input id="search-input" type="search" placeholder="Search by match, team, umpire, stage..." />
+      </div>
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Match ID</th>
+                <th>Match #</th>
+                <th>Stage</th>
+                <th>Team A</th>
+                <th>Team B</th>
+                <th>Status</th>
+                <th>Follow On</th>
+                <th>Winner</th>
+                <th>Win Type</th>
+                <th>Win Margin</th>
+                <th>Umpire ID</th>
+              </tr>
+            </thead>
+            <tbody id="draws-table-body"></tbody>
+          </table>
+        </div>
+        <div id="draws-empty" class="empty-state">Loading draw data...</div>
+      </div>
+    </section>
+  </div>
+  <script>
+    (function(){
+      const tournamentId = '{{ tournament_id }}';
+      const body = document.getElementById('draws-table-body');
+      const emptyState = document.getElementById('draws-empty');
+      const searchInput = document.getElementById('search-input');
+      let drawRows = [];
+
+      function escapeHtml(value){ return String(value||'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch])); }
+
+      function renderRows(rows){
+        if(!rows.length){
+          body.innerHTML = '';
+          emptyState.textContent = 'No draws available for this tournament.';
+          emptyState.style.display = 'block';
+          return;
+        }
+        emptyState.style.display = 'none';
+        body.innerHTML = rows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.match_id)}</td>
+            <td>${escapeHtml(r.match_number)}</td>
+            <td>${escapeHtml(r.stage_name)}</td>
+            <td>${escapeHtml(r.team_a_name || r.team_a_id)}</td>
+            <td>${escapeHtml(r.team_b_name || r.team_b_id)}</td>
+            <td>${escapeHtml(r.match_status || '')}</td>
+            <td>${r.is_follow_on_enforced ? 'Yes' : 'No'}</td>
+            <td>${escapeHtml(r.final_winner_id || '')}</td>
+            <td>${escapeHtml(r.win_type || '')}</td>
+            <td>${escapeHtml(r.win_margin || '')}</td>
+            <td>${escapeHtml(r.umpire_id || '')}</td>
+          </tr>
+        `).join('');
+      }
+
+      function loadDraws(){
+        fetch(`/api/matches?tournament_id=${encodeURIComponent(tournamentId)}`)
+          .then(r=>r.json())
+          .then(data=>{
+            drawRows = data || [];
+            renderRows(drawRows);
+          })
+          .catch(()=>{
+            body.innerHTML = '';
+            emptyState.textContent = 'Failed to load draws.';
+          });
+      }
+
+      function filterRows(){
+        const term = searchInput.value.toLowerCase();
+        const filtered = drawRows.filter(r =>
+          String(r.match_id).toLowerCase().includes(term) ||
+          String(r.match_number).toLowerCase().includes(term) ||
+          String(r.stage_name).toLowerCase().includes(term) ||
+          String(r.team_a_name).toLowerCase().includes(term) ||
+          String(r.team_b_name).toLowerCase().includes(term) ||
+          String(r.match_status).toLowerCase().includes(term) ||
+          String(r.umpire_id).toLowerCase().includes(term)
+        );
+        renderRows(filtered);
+      }
+
+      searchInput.addEventListener('input', filterRows);
+      loadDraws();
+    })();
+  </script>
+</body>
+</html>

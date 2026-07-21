@@ -3,52 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title }}</title>
+  <title>Create Draws - {{ tournament_name }}</title>
   <style>
-    :root { color-scheme: light; }
-    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
-    .layout { display: flex; min-height: 100vh; }
-    .sidebar { width: 260px; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; }
-    .brand { padding: 22px 20px; font-size: 1.05rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.12); }
-    nav { flex: 1; padding: 10px 0; }
-    nav a { display: block; color: inherit; text-decoration: none; padding: 12px 20px; }
-    nav a:hover { background: rgba(255,255,255,0.08); }
-    .logout { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.12); }
-    .main { flex: 1; padding: 24px; }
-    .card { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 20px; }
-    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-    .tab { padding: 10px 14px; border-radius: 999px; background: #e5e7eb; cursor: pointer; border: none; }
-    .tab.active { background: #0369a1; color: white; }
-    .wizard-step { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-    label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
-    input, select, textarea { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; width: 100%; box-sizing: border-box; }
-    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    button { border: none; padding: 10px 12px; border-radius: 8px; cursor: pointer; background: #0369a1; color: white; }
-    button.secondary { background: #10b981; }
-    button.danger { background: #dc2626; }
-    .group-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; margin-top: 12px; background: #fff; }
-    .group-card h4 { margin-top: 0; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
-    .muted { color: #6b7280; font-size: 0.95rem; }
-    .alert { padding: 12px; border-radius: 10px; margin-bottom: 12px; }
-    .alert.success { background: #ecfdf5; color: #065f46; }
-    .alert.error { background: #fef2f2; color: #991b1b; }
-    .hidden { display: none; }
-    .pill { display: inline-block; padding: 6px 10px; background: #e0f2fe; border-radius: 999px; font-size: 0.9rem; color: #075985; }
-    .bracket-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 14px; }
-    .bracket-round { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
-    .bracket-round h4 { margin: 0 0 10px; color: #0369a1; }
-    .bracket-match { border: 1px solid #dbeafe; border-radius: 10px; padding: 8px; margin-bottom: 8px; background: #f8fbff; }
-    .team { padding: 6px 8px; border-radius: 8px; background: #e0f2fe; margin-bottom: 6px; font-size: 0.95rem; }
-    .team.empty { color: #64748b; background: #f1f5f9; }
-    .connector { margin: 8px 0; border-left: 2px solid #93c5fd; padding-left: 8px; color: #64748b; font-size: 0.85rem; }
-    .chip { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 0.8rem; margin-top: 4px; }
-    .status-line { color: #6b7280; font-size: 0.95rem; margin-top: 8px; }
-    @media (max-width: 900px) { .layout { flex-direction: column; } .sidebar { width: 100%; } }
-    @media print { body { background: white; } .sidebar, .tabs, .actions, .alert { display: none !important; } .main { padding: 0; } .card { border: none; box-shadow: none; } }
+    :root{color-scheme:light}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;color:#111827}
+    .layout{display:flex;min-height:100vh}
+    .sidebar{width:240px;background:#0f172a;color:#f8fafc;padding:18px 12px}
+    .brand{font-weight:700;margin-bottom:12px}
+    .main{flex:1;padding:20px}
+    .card{background:#fff;padding:16px;border-radius:10px;border:1px solid #e5e7eb}
+    .tabs{display:flex;gap:8px;margin:12px 0}
+    .tab{padding:8px 12px;border-radius:999px;background:#e5e7eb;cursor:pointer}
+    .tab.active{background:#0369a1;color:#fff}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    label{display:block;font-weight:700}
+    input,select,button{padding:8px;border-radius:6px;border:1px solid #d1d5db}
+    button{background:#0369a1;color:#fff;border:none}
+    .secondary{background:#10b981}
+    .muted{color:#6b7280}
+    .groups-wrap{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+    .group-card{background:#fff;border:1px solid #e5e7eb;padding:12px;border-radius:8px;min-width:220px}
+    .fixtures-list{margin-top:12px}
+    .manual-match-card{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end}
+    .manual-match-card label{margin-bottom:0}
+    .manual-match-row{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px}
+    .manual-match-row span{font-weight:600}
+    .manual-match-row button{background:#dc2626}
+    .umpires-list{margin-top:12px}
+    @media print{.sidebar,.tabs,button{display:none}}
   </style>
 </head>
 <body>
@@ -56,670 +38,274 @@
     <aside class="sidebar">
       <div class="brand">Tech Team Panel</div>
       <nav>
-        <a href="/home">Home</a>
-        <a href="/umpires">Umpires</a>
-        <a href="/managers">Managers</a>
-        <a href="/players">Players</a>
-        <a href="/tournaments">Tournament Matches</a>
+        <div><a href="/home" style="color:inherit;text-decoration:none">Home</a></div>
+        <div style="margin-top:8px"><a href="/tournaments" style="color:inherit;text-decoration:none">Tournament Matches</a></div>
       </nav>
-      <div class="logout"><a href="/logout">Logout</a></div>
     </aside>
-    <section class="main">
+    <main class="main">
       <div class="card">
-        <div class="toolbar">
-          <div>
-            <h1>Create Draws - {{ tournament_name }}</h1>
-            <p class="muted">Tournament ID: {{ tournament_id }}</p>
-          </div>
-          <div class="pill">Draws Builder</div>
+        <h1>Create Draws - {{ tournament_name }}</h1>
+        <p class="muted">Tournament ID: {{ tournament_id }}</p>
+        <div class="tabs" role="tablist">
+          <div class="tab active" data-tab="group">Group Stage</div>
+          <div class="tab" data-tab="knockout">Knockouts</div>
+          <div class="tab" data-tab="league">League</div>
         </div>
-        <div class="tabs">
-          <button class="tab active" data-tab="group">Group Stage</button>
-          <button class="tab" data-tab="knockout">Knockout Stage</button>
-          <button class="tab" data-tab="league">League</button>
-        </div>
-        <div id="alert-box"></div>
 
-        <div id="group-panel" class="tab-panel">
-          <div class="wizard-step">
-            <h3>Step 1 - Tournament Configuration</h3>
+        <section id="group-panel" class="panel">
+          <div class="card">
+            <h3>Step 1 — Group Configuration</h3>
             <div class="grid">
               <label>Number of Groups<input id="group-count" type="number" min="1" value="2"></label>
-              <label>Maximum Teams Per Group<input id="teams-per-group" type="number" min="2" value="4"></label>
-              <label>Teams Qualifying From Each Group<select id="qualification-count"><option value="1">Top 1</option><option value="2" selected>Top 2</option><option value="3">Top 3</option><option value="4">Custom</option></select></label>
-              <label>Knockout Stage Starts From<select id="knockout-start-stage"><option>Pre Quarter Final</option><option selected>Quarter Final</option><option>Semi Final</option><option>Final</option></select></label>
+              <label>Max Teams Per Group<input id="teams-per-group" type="number" min="2" value="4"></label>
+              <label>Teams Qualifying<input id="qualification-count" type="number" min="1" value="1"></label>
             </div>
-            <div class="actions"><button onclick="generateGroups()">Generate Groups</button></div>
+            <div style="margin-top:12px"><button id="generate-groups">Generate Groups</button></div>
           </div>
 
-          <div class="wizard-step">
-            <h3>Step 2 - Assign Teams</h3>
-            <p class="muted">Assign every team into a group. Duplicate selections are blocked and empty groups are not allowed.</p>
-            <div id="group-assignments"></div>
+          <div class="card" style="margin-top:12px">
+            <h3>Step 2 — Assign Teams</h3>
+            <p class="muted">Select teams for each slot. A team can appear only once.</p>
+            <div id="groups-container" class="groups-wrap"></div>
+            <h4 style="margin-top:12px">Unassigned Teams</h4>
+            <div id="unassigned" class="muted"></div>
           </div>
 
-          <div class="wizard-step">
-            <h3>Step 3 - Generate Group Fixtures</h3>
-            <div class="actions"><button class="secondary" onclick="generateFixtures()">Generate Fixtures</button></div>
-            <div id="group-fixtures"></div>
-          </div>
-
-          <div class="wizard-step">
-            <h3>Step 4 - Assign Umpires</h3>
-            <div id="umpire-assignment"></div>
-          </div>
-
-          <div class="wizard-step">
-            <h3>Step 5 - Knockout Draw Builder</h3>
-            <div class="grid">
-              <label>Current Stage<select id="group-knockout-stage"><option>Pre Quarter Final</option><option selected>Quarter Final</option><option>Semi Final</option><option>Final</option></select></label>
+          <div class="card" style="margin-top:12px">
+            <h3>Step 3 — Generate Fixtures</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button id="generate-fixtures" class="secondary">Generate Fixtures</button>
+              <button id="export-group-excel">Download Excel</button>
+              <button id="export-group-pdf">Download PDF</button>
             </div>
-            <div class="actions"><button onclick="buildGroupKnockoutMatches()">Build Knockout</button></div>
-            <div id="group-knockout-builder"></div>
-            <div class="actions"><button class="secondary" onclick="goToLiveBucket()">Go to live bucket</button></div>
-          </div>
-
-          <div class="wizard-step">
-            <h3>Live Bracket</h3>
-            <div id="group-bracket"></div>
-            <div class="actions">
-              <button onclick="saveCurrentTabDraw()">Save Draw</button>
-              <button class="secondary" onclick="exportBracket('png')">Download PNG</button>
-              <button onclick="exportBracket('pdf')">Download PDF</button>
-              <button onclick="window.print()">Print Draw</button>
+            <div id="fixtures-preview" class="fixtures-list"></div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button id="save-group-draws" class="secondary">Save All Group Stage Matches</button>
+              <button id="back-list" class="secondary">Back to Tournaments</button>
             </div>
           </div>
-        </div>
 
-        <div id="knockout-panel" class="tab-panel hidden">
-          <div class="wizard-step">
-            <h3>Knockout Configuration</h3>
-            <div class="grid">
-              <label>Starting Stage<select id="ko-stage"><option>Pre Quarter Final</option><option selected>Quarter Final</option><option>Semi Final</option><option>Final</option></select></label>
-              <label>Number of Matches<input id="ko-count" type="number" min="1" value="2"></label>
+          <div class="card" style="margin-top:12px">
+            <h3>Step 4 — Create Manual Match</h3>
+            <div class="manual-match-card">
+              <label>Team One<select id="manual-team-a"><option value="">Select team</option></select></label>
+              <label>Team Two<select id="manual-team-b"><option value="">Select team</option></select></label>
+              <label>Umpire<select id="manual-umpire"><option value="">Select umpire</option></select></label>
             </div>
-            <div class="actions"><button onclick="generateKnockoutOnly()">Generate Matches</button></div>
-            <div id="knockout-only-table"></div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button id="create-manual-match" class="secondary">Create Match</button>
+              <button id="save-manual-draws" class="secondary">Save All Manual Matches</button>
+              <button id="export-manual-excel">Download Excel</button>
+              <button id="export-manual-pdf">Download PDF</button>
+            </div>
+            <div id="manual-matches-list" class="fixtures-list" style="margin-top:12px"></div>
           </div>
 
-          <div class="wizard-step">
-            <h3>Live Bracket</h3>
-            <div id="knockout-bracket"></div>
-            <div class="actions">
-              <button onclick="saveCurrentTabDraw()">Save Draw</button>
-              <button class="secondary" onclick="exportBracket('png')">Download PNG</button>
-              <button onclick="exportBracket('pdf')">Download PDF</button>
-              <button onclick="window.print()">Print Draw</button>
-            </div>
+          <div class="card" style="margin-top:12px">
+            <h3>Umpires</h3>
+            <div id="umpires-list" class="umpires-list muted">Loading...</div>
           </div>
-        </div>
+        </section>
 
-        <div id="league-panel" class="tab-panel hidden">
-          <div class="wizard-step">
-            <h3>League Configuration</h3>
-            <div class="grid">
-              <label>Number of Teams<input id="league-team-count" type="number" min="2" value="4"></label>
-              <label>Qualification Count<select id="league-qualification-count"><option value="2" selected>Top 2</option><option value="4">Top 4</option><option value="8">Top 8</option></select></label>
-            </div>
-            <div class="actions"><button onclick="generateLeagueFixtures()">Create Playoff Bracket</button></div>
-            <div id="league-table"></div>
-          </div>
+        <section id="knockout-panel" class="panel" style="display:none">
+          <div class="card"><h3>Knockouts</h3><p class="muted">(Placeholder — will implement on request)</p></div>
+        </section>
 
-          <div class="wizard-step">
-            <h3>Live Bracket</h3>
-            <div id="league-bracket"></div>
-            <div class="actions">
-              <button onclick="saveCurrentTabDraw()">Save Draw</button>
-              <button class="secondary" onclick="exportBracket('png')">Download PNG</button>
-              <button onclick="exportBracket('pdf')">Download PDF</button>
-              <button onclick="window.print()">Print Draw</button>
-            </div>
-          </div>
-        </div>
+        <section id="league-panel" class="panel" style="display:none">
+          <div class="card"><h3>League</h3><p class="muted">(Placeholder — will implement on request)</p></div>
+        </section>
       </div>
-    </section>
+    </main>
   </div>
-<script>
-const tournamentId = '{{ tournament_id }}';
-let teams = [];
-let umpires = [];
-let groups = [];
-let groupFixtures = [];
-let knockoutMatches = [];
-let groupKnockoutRounds = {
-  'Pre Quarter Final': [],
-  'Quarter Final': [],
-  'Semi Final': [],
-  'Final': []
-};
-const knockoutStageOrder = ['Pre Quarter Final', 'Quarter Final', 'Semi Final', 'Final'];
-let builtKnockoutStages = new Set();
-let leagueTeams = [];
-const state = { activeTab: 'group' };
 
-function escapeHtml(value) {
-  return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-}
+  <script>
+  (function(){
+    const tournamentId = '{{ tournament_id }}';
+    let teams = [];
+    let umpires = [];
+    let groups = [];
+    let fixtures = [];
+    let manualMatches = [];
 
-function showAlert(message, isError) {
-  const box = document.getElementById('alert-box');
-  box.className = `alert ${isError ? 'error' : 'success'}`;
-  box.textContent = message;
-}
+    function el(id){return document.getElementById(id)}
 
-function loadTeams() {
-  fetch('/api/teams').then(res => res.json()).then(data => {
-    teams = (data.teams || []).filter(item => item.tournament_id === tournamentId);
-    if (!teams.length) {
-      showAlert('No teams are linked to this tournament yet.', true);
+    function fetchData(){
+      return Promise.all([
+        fetch('/api/teams').then(r=>r.json()).then(d=>{teams=(d.teams||[]).filter(t=>t.tournament_id===tournamentId)}),
+        fetch('/api/umpires').then(r=>r.json()).then(d=>{umpires=d.umpires||[]})
+      ]).then(()=>{renderUnassigned();renderUmpiresList();renderManualMatchSelectors();renderManualMatches()});
     }
-  });
-}
 
-function loadUmpires() {
-  fetch('/api/umpires').then(res => res.json()).then(data => {
-    umpires = data.umpires || [];
-  }).catch(() => {
-    umpires = [];
-  });
-}
-
-function teamName(teamId) {
-  const team = teams.find(item => item.team_id === teamId);
-  return team ? team.team_name : teamId;
-}
-
-function umpireName(umpireId) {
-  const umpire = umpires.find(item => item.umpire_id === umpireId);
-  return umpire ? umpire.name : umpireId;
-}
-
-function buildUmpireSelect(currentId, onChangeHandler) {
-  const options = ['<option value="">Select umpire</option>'];
-  options.push(...umpires.map(item => `<option value="${item.umpire_id}" ${item.umpire_id === currentId ? 'selected' : ''}>${escapeHtml(item.name)}${item.blocked ? ' (blocked)' : ''}</option>`));
-  return `<select onchange="${onChangeHandler}">${options.join('')}</select>`;
-}
-
-function generateGroups() {
-  const groupCount = parseInt(document.getElementById('group-count').value || '2', 10);
-  const teamsPerGroup = parseInt(document.getElementById('teams-per-group').value || '4', 10);
-  const qualificationCount = parseInt(document.getElementById('qualification-count').value || '2', 10);
-  if (!teams.length) {
-    showAlert('Add teams to this tournament before generating groups.', true);
-    return;
-  }
-  if (groupCount < 1 || teamsPerGroup < 2 || teams.length < groupCount * teamsPerGroup) {
-    showAlert('The configured group size does not fit the available teams.', true);
-    return;
-  }
-  const shuffled = [...teams].sort(() => Math.random() - 0.5);
-  groups = Array.from({ length: groupCount }, (_, index) => ({
-    name: `Group ${String.fromCharCode(65 + index)}`,
-    members: Array.from({ length: teamsPerGroup }, (_, slot) => shuffled[index * teamsPerGroup + slot]?.team_id || ''),
-    qualifiers: Array.from({ length: Math.min(qualificationCount, teamsPerGroup) }, () => '')
-  }));
-  renderGroupAssignments();
-  renderGroupFixtures();
-  renderGroupKnockoutBuilder();
-  renderLiveBrackets();
-  showAlert('Groups generated successfully.', false);
-}
-
-function renderGroupAssignments() {
-  const container = document.getElementById('group-assignments');
-  if (!groups.length) {
-    container.innerHTML = '<p class="muted">Generate groups first.</p>';
-    return;
-  }
-  const html = groups.map((group, groupIndex) => {
-    const allTeamNames = teams.map(team => team.team_name);
-    const selectedIds = groups.flatMap(item => item.members);
-    const slots = group.members.map((teamId, slotIndex) => {
-      const currentName = teamName(teamId);
-      const options = teams.map(team => ({ value: team.team_name, label: team.team_name })).filter(item => item.value === currentName || !selectedIds.includes(teams.find(team => team.team_name === item.value)?.team_id) || teamId === teams.find(team => team.team_name === item.value)?.team_id);
-      const selectOptions = [{ value: '', label: 'Select team' }, ...options];
-      return `<label>Slot ${slotIndex + 1}<select onchange="updateGroupAssignment(${groupIndex}, ${slotIndex}, this.value)">${selectOptions.map(item => `<option value="${escapeHtml(item.value)}" ${item.value === currentName ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label>`;
-    }).join('');
-    return `<div class="group-card"><h4>${escapeHtml(group.name)}</h4>${slots}</div>`;
-  }).join('');
-  container.innerHTML = html;
-}
-
-function updateGroupAssignment(groupIndex, slotIndex, selectedName) {
-  const group = groups[groupIndex];
-  if (!group) return;
-  const selectedTeam = teams.find(team => team.team_name === selectedName);
-  if (!selectedTeam) {
-    group.members[slotIndex] = '';
-    renderGroupAssignments();
-    return;
-  }
-  const usedByOtherGroups = groups.flatMap((item, idx) => idx === groupIndex ? [] : item.members);
-  if (usedByOtherGroups.includes(selectedTeam.team_id) && selectedTeam.team_id !== group.members[slotIndex]) {
-    showAlert('A team can only appear once across groups.', true);
-    return;
-  }
-  group.members[slotIndex] = selectedTeam.team_id;
-  renderGroupAssignments();
-  renderGroupFixtures();
-  renderGroupKnockoutBuilder();
-  renderLiveBrackets();
-}
-
-function generateFixtures() {
-  if (!groups.length) {
-    showAlert('Generate groups first.', true);
-    return;
-  }
-  const invalidGroups = groups.filter(group => group.members.filter(Boolean).length < 2);
-  if (invalidGroups.length) {
-    showAlert('Each group needs at least two assigned teams before fixtures can be generated.', true);
-    return;
-  }
-  groupFixtures = [];
-  groups.forEach(group => {
-    const members = group.members.filter(Boolean);
-    for (let i = 0; i < members.length; i += 1) {
-      for (let j = i + 1; j < members.length; j += 1) {
-        groupFixtures.push({
-          id: `${group.name}-${i + 1}-${j + 1}`,
-          group_name: group.name,
-          team_a_id: members[i],
-          team_b_id: members[j],
-          umpire_id: '',
-          draw_type: 'group',
-          match_number: groupFixtures.length + 1,
-          status: 'Scheduled'
-        });
-      }
+    function renderUmpiresList(){
+      const container = el('umpires-list');
+      if(!umpires.length) return container.textContent='No umpires';
+      container.innerHTML = '<ul>'+umpires.map(u=>`<li>${u.name} (${u.umpire_id})${u.blocked? ' — blocked':''}</li>`).join('')+'</ul>';
     }
-  });
-  renderFixtures();
-  renderUmpireAssignments();
-  renderLiveBrackets();
-  showAlert('Fixtures generated successfully.', false);
-}
 
-function renderFixtures() {
-  const container = document.getElementById('group-fixtures');
-  if (!groupFixtures.length) {
-    container.innerHTML = '<p class="muted">No fixtures yet.</p>';
-    return;
-  }
-  const grouped = groupFixtures.reduce((acc, fixture) => {
-    (acc[fixture.group_name] ||= []).push(fixture);
-    return acc;
-  }, {});
-  const html = Object.entries(grouped).map(([groupName, fixtures]) => `
-    <div class="group-card">
-      <h4>${escapeHtml(groupName)}</h4>
-      <table>
-        <thead><tr><th>#</th><th>Team 1</th><th>Team 2</th></tr></thead>
-        <tbody>${fixtures.map((fixture, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${escapeHtml(teamName(fixture.team_a_id))}</td>
-            <td>${escapeHtml(teamName(fixture.team_b_id))}</td>
-          </tr>`).join('')}</tbody>
-      </table>
-    </div>`).join('');
-  container.innerHTML = html;
-}
-
-function renderUmpireAssignments() {
-  const container = document.getElementById('umpire-assignment');
-  if (!groupFixtures.length) {
-    container.innerHTML = '<p class="muted">Generate fixtures to assign umpires.</p>';
-    return;
-  }
-  const rows = groupFixtures.map((fixture, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(fixture.group_name)}</td>
-      <td>${escapeHtml(teamName(fixture.team_a_id))}</td>
-      <td>${escapeHtml(teamName(fixture.team_b_id))}</td>
-      <td>${buildUmpireSelect(fixture.umpire_id, `updateFixture('${fixture.id}', 'umpire_id', this.value)`)}</td>
-    </tr>`).join('');
-  container.innerHTML = `<table><thead><tr><th>#</th><th>Group</th><th>Team 1</th><th>Team 2</th><th>Umpire</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-function updateFixture(id, field, value) {
-  const fixture = groupFixtures.find(item => item.id === id);
-  if (fixture) {
-    fixture[field] = value;
-    renderUmpireAssignments();
-    renderLiveBrackets();
-  }
-}
-
-function getKnockoutParticipantCount(stage) {
-  switch (stage) {
-    case 'Pre Quarter Final': return 8;
-    case 'Quarter Final': return 4;
-    case 'Semi Final': return 2;
-    case 'Final': return 1;
-    default: return 1;
-  }
-}
-
-function getKnockoutStageOrder() {
-  return knockoutStageOrder;
-}
-
-function getStageMatchLabels(stage) {
-  switch (stage) {
-    case 'Pre Quarter Final': return Array.from({ length: 8 }, (_, index) => `PQ ${index + 1}`);
-    case 'Quarter Final': return ['Q1', 'Q2', 'Q3', 'Q4'];
-    case 'Semi Final': return ['Semi 1', 'Semi 2'];
-    case 'Final': return ['Final'];
-    default: return Array.from({ length: 1 }, (_, index) => `Match ${index + 1}`);
-  }
-}
-
-function getStageSourceOptions(stage) {
-  const previousStage = knockoutStageOrder[knockoutStageOrder.indexOf(stage) - 1];
-  if (previousStage && groupKnockoutRounds[previousStage] && groupKnockoutRounds[previousStage].length) {
-    return groupKnockoutRounds[previousStage].map((entry, index) => {
-      const label = entry.match_name || `${previousStage} ${index + 1}`;
-      return { value: label, label: `Winner of ${label}` };
-    });
-  }
-  return groups.flatMap(group => [
-    { value: `Winner of ${group.name}`, label: `Winner of ${group.name}` },
-    { value: `Runner-up of ${group.name}`, label: `Runner-up of ${group.name}` }
-  ]);
-}
-
-function updateGroupKnockoutStageOptions() {
-  const current = document.getElementById('group-knockout-stage');
-  const selected = current.value;
-  const builtStageIndexes = [...builtKnockoutStages].map(stage => knockoutStageOrder.indexOf(stage)).filter(i => i >= 0);
-  const maxBuiltIndex = builtStageIndexes.length ? Math.max(...builtStageIndexes) : -1;
-  const options = knockoutStageOrder
-    .filter((stage, index) => index > maxBuiltIndex)
-    .map(stage => `<option value="${escapeHtml(stage)}">${escapeHtml(stage)}</option>`);
-  current.innerHTML = options.join('');
-  const buildButton = document.querySelector('button[onclick="buildGroupKnockoutMatches()"]');
-  if (!options.length) {
-    current.disabled = true;
-    if (buildButton) buildButton.setAttribute('disabled', 'true');
-  } else {
-    current.disabled = false;
-    if (buildButton) buildButton.removeAttribute('disabled');
-    if (!options.some(opt => opt.includes(`value="${selected}"`))) {
-      const match = options[0]?.match(/value="([^"]+)"/);
-      if (match) current.value = match[1];
-    } else {
-      current.value = selected;
+    function showPanel(name){
+      ['group','knockout','league'].forEach(t=>{el(t+'-panel').style.display=(t===name)?'block':'none';});
+      document.querySelectorAll('.tab').forEach(tab=>tab.classList.toggle('active', tab.dataset.tab===name));
     }
-  }
-}
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>showPanel(t.dataset.tab)));
 
-function saveGroupKnockoutEntry(stage, index, field, value) {
-  if (!groupKnockoutRounds[stage]) {
-    groupKnockoutRounds[stage] = [];
-  }
-  if (!groupKnockoutRounds[stage][index]) {
-    groupKnockoutRounds[stage][index] = { match_name: getStageMatchLabels(stage)[index], stage, team_a_source: '', team_b_source: '', umpire_id: '', draw_type: 'knockout', status: 'Scheduled' };
-  }
-  groupKnockoutRounds[stage][index][field] = value;
-  renderGroupKnockoutBuilder();
-}
+    function renderUnassigned(){
+      const used = groups.flatMap(g=>g.members).filter(Boolean);
+      const list = teams.filter(t=>!used.includes(t.team_id)).map(t=>`<div>${t.team_name} <span class="muted">(${t.team_id})</span></div>`).join('')||'<div class="muted">No teams</div>';
+      el('unassigned').innerHTML = list;
+    }
 
-function renderGroupKnockoutBuilder() {
-  const container = document.getElementById('group-knockout-builder');
-  if (!groups.length || !groups.some(group => group.members.filter(Boolean).length)) {
-    container.innerHTML = '<p class="muted">Generate groups and assign teams to configure the knockout draw.</p>';
-    return;
-  }
-  const stage = document.getElementById('group-knockout-stage').value;
-  const count = getKnockoutParticipantCount(stage);
-  const entries = groupKnockoutRounds[stage] || [];
-  const options = getStageSourceOptions(stage);
-  const rows = Array.from({ length: count }, (_, index) => {
-    const entry = entries[index] || { match_name: getStageMatchLabels(stage)[index], team_a_source: '', team_b_source: '', umpire_id: '' };
-    const leftOptions = options.map(source => `<option value="${escapeHtml(source.value)}" ${entry.team_a_source === source.value ? 'selected' : ''}>${escapeHtml(source.label)}</option>`).join('');
-    const rightOptions = options.map(source => `<option value="${escapeHtml(source.value)}" ${entry.team_b_source === source.value ? 'selected' : ''}>${escapeHtml(source.label)}</option>`).join('');
-    return `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${escapeHtml(entry.match_name)}</td>
-        <td><select onchange="saveGroupKnockoutEntry('${stage}', ${index}, 'team_a_source', this.value)"><option value="">Select first slot</option>${leftOptions}</select></td>
-        <td><select onchange="saveGroupKnockoutEntry('${stage}', ${index}, 'team_b_source', this.value)"><option value="">Select second slot</option>${rightOptions}</select></td>
-        <td>${buildUmpireSelect(entry.umpire_id || '', `saveGroupKnockoutEntry('${stage}', ${index}, 'umpire_id', this.value)`)}</td>
-        <td>${entry.team_a_source && entry.team_b_source ? `<span class="pill">${escapeHtml(entry.team_a_source)} vs ${escapeHtml(entry.team_b_source)}</span>` : '<span class="muted">Awaiting selection</span>'}</td>
-      </tr>`;
-  }).join('');
-  container.innerHTML = `<table><thead><tr><th>#</th><th>Match</th><th>Team 1</th><th>Team 2</th><th>Umpire</th><th>Live Label</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
+    function generateGroups(){
+      const n = parseInt(el('group-count').value||'1',10);
+      const max = parseInt(el('teams-per-group').value||'4',10);
+      groups = Array.from({length:n},(_,i)=>({name:`Group ${String.fromCharCode(65+i)}`, members:Array(max).fill('')}));
+      renderGroups();
+    }
 
-function buildGroupKnockoutMatches() {
-  const stage = document.getElementById('group-knockout-stage').value;
-  const count = getKnockoutParticipantCount(stage);
-  const labels = getStageMatchLabels(stage);
-  groupKnockoutRounds[stage] = groupKnockoutRounds[stage] || [];
-  groupKnockoutRounds[stage] = Array.from({ length: count }, (_, index) => {
-    const existing = groupKnockoutRounds[stage][index] || {};
-    return {
-      match_name: labels[index],
-      stage,
-      team_a_source: existing.team_a_source || '',
-      team_b_source: existing.team_b_source || '',
-      umpire_id: existing.umpire_id || '',
-      draw_type: 'knockout',
-      status: 'Scheduled'
-    };
-  });
-  renderGroupKnockoutBuilder();
-  showAlert('Knockout entries prepared.', false);
-}
+    function renderGroups(){
+      const container = el('groups-container');
+      container.innerHTML = groups.map((g,gi)=>{
+        const slots = g.members.map((m,mi)=>{
+          const options = ['<option value="">--</option>', ...teams.map(t=>`<option value="${t.team_id}" ${t.team_id===m?'selected':''}>${t.team_name}</option>`)].join('');
+          return `<div style="margin-bottom:8px"><label style="font-weight:600">Slot ${mi+1}</label><select data-g="${gi}" data-s="${mi}">${options}</select></div>`;
+        }).join('');
+        return `<div class="group-card"><h4>${g.name}</h4>${slots}</div>`;
+      }).join('');
+      container.querySelectorAll('select').forEach(sel=>sel.addEventListener('change',onGroupSelect));
+      renderUnassigned();
+    }
 
-function goToLiveBucket() {
-  const stage = document.getElementById('group-knockout-stage').value;
-  const entries = groupKnockoutRounds[stage] || [];
-  const valid = entries.every(entry => entry.team_a_source && entry.team_b_source && entry.umpire_id && entry.team_a_source !== entry.team_b_source);
-  if (!valid) {
-    showAlert('Please complete all selections and assign each match an umpire before moving to the live bucket.', true);
-    return;
-  }
-  builtKnockoutStages.add(stage);
-  updateGroupKnockoutStageOptions();
-  renderLiveBrackets();
-  showAlert(`${stage} added to live bucket.`, false);
-}
+    function onGroupSelect(e){
+      const g = parseInt(e.target.dataset.g,10), s = parseInt(e.target.dataset.s,10), val = e.target.value;
+      const used = groups.flatMap(x=>x.members).filter(Boolean).filter(id=>id!==groups[g].members[s]);
+      if(val && used.includes(val)){ alert('Team already assigned'); e.target.value=''; return; }
+      groups[g].members[s]=val;
+      renderUnassigned();
+    }
 
-function generateKnockoutOnly() {
-  const stage = document.getElementById('ko-stage').value;
-  const count = parseInt(document.getElementById('ko-count').value || '2', 10);
-  knockoutMatches = Array.from({ length: count }, (_, index) => ({
-    id: `knockout-${index}`,
-    stage,
-    team_a_id: '',
-    team_b_id: '',
-    umpire_id: '',
-    draw_type: 'knockout',
-    status: 'Scheduled'
-  }));
-  document.getElementById('knockout-only-table').innerHTML = `<table><thead><tr><th>#</th><th>Stage</th><th>Team 1</th><th>Team 2</th><th>Umpire</th></tr></thead><tbody>${knockoutMatches.map((match, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(match.stage)}</td>
-      <td><select onchange="updateKnockoutMatch(${index}, 'team_a_id', this.value)"><option value="">Select team</option>${teams.map(team => `<option value="${team.team_id}" ${team.team_id === match.team_a_id ? 'selected' : ''}>${escapeHtml(team.team_name)}</option>`).join('')}</select></td>
-      <td><select onchange="updateKnockoutMatch(${index}, 'team_b_id', this.value)"><option value="">Select team</option>${teams.map(team => `<option value="${team.team_id}" ${team.team_id === match.team_b_id ? 'selected' : ''}>${escapeHtml(team.team_name)}</option>`).join('')}</select></td>
-      <td>${buildUmpireSelect(match.umpire_id, `updateKnockoutMatch(${index}, 'umpire_id', this.value)`)}</td>
-    </tr>`).join('')}</tbody></table>`;
-  renderLiveBrackets();
-  showAlert('Knockout matches generated.', false);
-}
-
-function generateLeagueFixtures() {
-  const count = parseInt(document.getElementById('league-team-count').value || '4', 10);
-  const qualificationCount = parseInt(document.getElementById('league-qualification-count').value || '2', 10);
-  leagueTeams = teams.slice(0, count).map(team => ({ team_id: team.team_id, team_name: team.team_name }));
-  while (leagueTeams.length < count) {
-    leagueTeams.push({ team_id: `team-${leagueTeams.length + 1}`, team_name: `Team ${leagueTeams.length + 1}` });
-  }
-  document.getElementById('league-table').innerHTML = `<table><thead><tr><th>#</th><th>Team</th><th>Umpire</th></tr></thead><tbody>${leagueTeams.map((team, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(team.team_name)}</td><td>${buildUmpireSelect('', `updateLeagueTeam(${index}, 'umpire_id', this.value)`)}</td></tr>`).join('')}</tbody></table>`;
-  renderLiveBrackets();
-  showAlert(`League playoff bracket prepared for ${qualificationCount} qualifiers.`, false);
-}
-
-function updateLeagueTeam(index, field, value) {
-  if (!leagueTeams[index]) return;
-  leagueTeams[index][field] = value;
-  renderLiveBrackets();
-}
-
-function renderLiveBrackets() {
-  renderBracket('group-bracket', buildGroupBracketData());
-  renderBracket('knockout-bracket', buildKnockoutBracketData());
-  renderBracket('league-bracket', buildLeagueBracketData());
-}
-
-function buildGroupBracketData() {
-  const rounds = [];
-  if (groupFixtures.length) {
-    rounds.push({ title: 'Group Fixtures', matches: groupFixtures.slice(0, 6).map(fixture => ({ teamA: teamName(fixture.team_a_id) || 'TBD', teamB: teamName(fixture.team_b_id) || 'TBD', winner: 'Winner' })) });
-  }
-  knockoutStageOrder.forEach(stage => {
-    const entries = (groupKnockoutRounds[stage] || []).filter(item => item.group_name);
-    if (entries.length) {
-      rounds.push({
-        title: stage,
-        matches: entries.map(entry => ({ teamA: `${entry.position || 'Winner'} of ${entry.group_name}`, teamB: 'TBD', winner: 'Winner' }))
+    function generateFixtures(){
+      fixtures = [];
+      groups.forEach(g=>{
+        const members = g.members.filter(Boolean);
+        for(let i=0;i<members.length;i++)for(let j=i+1;j<members.length;j++)fixtures.push({group_name:g.name,stage_name:g.name,team_a_id:members[i],team_b_id:members[j],match_number:fixtures.length+1,match_status:'Scheduled',umpire_id:''});
       });
+      renderFixtures();
+      renderUmpiresList();
     }
-  });
-  if (!rounds.length) {
-    rounds.push({ title: 'Group Stage', matches: [{ teamA: 'TBD', teamB: 'TBD', winner: 'Winner' }] });
-  }
-  return rounds;
-}
 
-function buildKnockoutBracketData() {
-  const matches = knockoutMatches.length ? knockoutMatches : [{ team_a_id: '', team_b_id: '', umpire_id: '' }];
-  return [{ title: document.getElementById('ko-stage').value || 'Knockout', matches: matches.map(item => ({ teamA: teamName(item.team_a_id) || 'TBD', teamB: teamName(item.team_b_id) || 'TBD', winner: 'Winner' })) }];
-}
+    function renderFixtures(){
+      const elp = el('fixtures-preview');
+      if(!fixtures.length){ elp.innerHTML='<div class="muted">No fixtures generated</div>'; return; }
+      const html = fixtures.map((f,idx)=>{
+        const umpOptions = ['<option value="">Select Umpire</option>', ...umpires.map(u=>`<option value="${u.umpire_id}" ${u.umpire_id===f.umpire_id?'selected':''}>${u.name}</option>`)].join('');
+        return `<div style="padding:8px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:12px"><div>${f.group_name} — <strong>${teamName(f.team_a_id)}</strong> vs <strong>${teamName(f.team_b_id)}</strong></div><select data-i="${idx}">${umpOptions}</select></div>`;
+      }).join('');
+      elp.innerHTML = html;
+      elp.querySelectorAll('select').forEach(s=>s.addEventListener('change',e=>{fixtures[parseInt(e.target.dataset.i,10)].umpire_id=e.target.value;}));
+    }
 
-function buildLeagueBracketData() {
-  const teamsForBracket = leagueTeams.length ? leagueTeams : teams.slice(0, 4).map(team => ({ team_id: team.team_id, team_name: team.team_name }));
-  const semifinalOne = teamsForBracket[0] || { team_name: 'TBD' };
-  const semifinalTwo = teamsForBracket[1] || { team_name: 'TBD' };
-  const semifinalThree = teamsForBracket[2] || { team_name: 'TBD' };
-  const semifinalFour = teamsForBracket[3] || { team_name: 'TBD' };
-  return [
-    { title: 'Semi Final 1', matches: [{ teamA: semifinalOne.team_name, teamB: semifinalFour.team_name, winner: 'Winner' }] },
-    { title: 'Semi Final 2', matches: [{ teamA: semifinalTwo.team_name, teamB: semifinalThree.team_name, winner: 'Winner' }] },
-    { title: 'Final', matches: [{ teamA: 'Winner SF1', teamB: 'Winner SF2', winner: 'Winner' }] }
-  ];
-}
+    function updateManualTeamOptions(){
+      const selectedA = el('manual-team-a').value;
+      const selectedB = el('manual-team-b').value;
+      const teamOptionsA = ['<option value="">Select team</option>', ...teams.map(t => `<option value="${t.team_id}"${t.team_id === selectedB ? ' disabled' : ''}>${t.team_name}</option>`)].join('');
+      const teamOptionsB = ['<option value="">Select team</option>', ...teams.filter(t => t.team_id !== selectedA).map(t => `<option value="${t.team_id}">${t.team_name}</option>`)].join('');
+      el('manual-team-a').innerHTML = teamOptionsA;
+      el('manual-team-b').innerHTML = teamOptionsB;
+      if (selectedA) el('manual-team-a').value = selectedA;
+      if (selectedB && selectedB !== selectedA) el('manual-team-b').value = selectedB;
+    }
 
-function renderBracket(containerId, sections) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  const html = sections.map(section => `
-    <div class="bracket-round">
-      <h4>${escapeHtml(section.title)}</h4>
-      ${section.matches.map(match => `
-        <div class="bracket-match">
-          <div class="team ${match.teamA ? '' : 'empty'}">${escapeHtml(match.teamA || 'TBD')}</div>
-          <div class="team ${match.teamB ? '' : 'empty'}">${escapeHtml(match.teamB || 'TBD')}</div>
-          <div class="connector">Progression to next round</div>
-          <div class="chip">${escapeHtml(match.winner || 'Winner')}</div>
-        </div>`).join('')}
-    </div>`).join('');
-  container.innerHTML = `<div class="bracket-wrapper">${html}</div>`;
-}
+    function renderManualMatchSelectors(){
+      const teamOptions = ['<option value="">Select team</option>', ...teams.map(t=>`<option value="${t.team_id}">${t.team_name}</option>`)].join('');
+      const umpOptions = ['<option value="">Select umpire</option>', ...umpires.map(u=>`<option value="${u.umpire_id}">${u.name}</option>`)].join('');
+      el('manual-team-a').innerHTML = teamOptions;
+      el('manual-team-b').innerHTML = teamOptions;
+      el('manual-umpire').innerHTML = umpOptions;
+      el('manual-team-a').addEventListener('change', updateManualTeamOptions);
+      el('manual-team-b').addEventListener('change', updateManualTeamOptions);
+      updateManualTeamOptions();
+    }
 
-function saveCurrentTabDraw() {
-  const payload = { config: {}, draws: [] };
-  if (state.activeTab === 'group') {
-    payload.config = {
-      groupCount: document.getElementById('group-count').value,
-      teamsPerGroup: document.getElementById('teams-per-group').value,
-      qualificationCount: document.getElementById('qualification-count').value,
-      knockoutStage: document.getElementById('group-knockout-stage').value
-    };
-    payload.draws = [...groupFixtures, ...knockoutMatches];
-  } else if (state.activeTab === 'knockout') {
-    payload.config = {
-      stage: document.getElementById('ko-stage').value,
-      matchCount: document.getElementById('ko-count').value
-    };
-    payload.draws = knockoutMatches;
-  } else {
-    payload.config = {
-      teamCount: document.getElementById('league-team-count').value,
-      qualificationCount: document.getElementById('league-qualification-count').value
-    };
-    payload.draws = leagueTeams.map(team => ({ team_a_id: team.team_id, team_b_id: '', draw_type: 'league', status: 'Scheduled' }));
-  }
-  fetch(`/api/tournaments/${tournamentId}/draws`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        showAlert('Draw saved successfully.', false);
-      } else {
-        showAlert('Unable to save the draw.', true);
-      }
-    }).catch(() => showAlert('Unable to save the draw.', true));
-}
+    function addManualMatch(){
+      const teamA = el('manual-team-a').value;
+      const teamB = el('manual-team-b').value;
+      const umpireId = el('manual-umpire').value;
+      if(!teamA || !teamB){ alert('Choose both teams'); return; }
+      if(teamA === teamB){ alert('Team one and two must be different'); return; }
+      if(matchExists(teamA, teamB)){ alert('This match already exists'); return; }
+      manualMatches.push({group_name:'Manual', stage_name:'Manual', team_a_id:teamA, team_b_id:teamB, match_number:manualMatches.length + 1, match_status:'Scheduled', umpire_id:umpireId});
+      renderManualMatches();
+    }
 
-function exportBracket(format) {
-  if (format === 'pdf') {
-    window.print();
-    return;
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = 1400;
-  canvas.height = 900;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#0369a1';
-  ctx.font = 'bold 28px Arial';
-  ctx.fillText('Tournament Draw', 60, 80);
-  ctx.font = '20px Arial';
-  ctx.fillStyle = '#111827';
-  ctx.fillText(`Tournament: ${document.querySelector('h1').textContent}`, 60, 120);
-  let cursorY = 170;
-  const sections = state.activeTab === 'group' ? buildGroupBracketData() : state.activeTab === 'knockout' ? buildKnockoutBracketData() : buildLeagueBracketData();
-  sections.forEach(section => {
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText(section.title, 60, cursorY);
-    cursorY += 32;
-    section.matches.forEach(match => {
-      ctx.font = '18px Arial';
-      ctx.fillRect(60, cursorY, 520, 30);
-      ctx.fillStyle = '#0f172a';
-      ctx.fillText(`${match.teamA || 'TBD'} vs ${match.teamB || 'TBD'}`, 80, cursorY + 20);
-      cursorY += 48;
-      ctx.fillStyle = '#111827';
-    });
-    cursorY += 20;
-  });
-  const link = document.createElement('a');
-  link.href = canvas.toDataURL('image/png');
-  link.download = 'draw.png';
-  link.click();
-  showAlert('Bracket exported as a PNG file.', false);
-}
+    function matchExists(teamA, teamB){
+      const samePair = (a,b,c,d) => (a===c && b===d) || (a===d && b===c);
+      return fixtures.some(f => samePair(teamA, teamB, f.team_a_id, f.team_b_id)) || manualMatches.some(m => samePair(teamA, teamB, m.team_a_id, m.team_b_id));
+    }
 
-function switchTab(tab) {
-  state.activeTab = tab;
-  document.querySelectorAll('.tab').forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
-  document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('hidden', panel.id !== `${tab}-panel`));
-  renderLiveBrackets();
-}
+    function renderManualMatches(){
+      const list = el('manual-matches-list');
+      console.log('Rendering manual matches:', manualMatches);
+      if(!manualMatches.length){ list.innerHTML = '<div class="muted">No manual matches added</div>'; return; }
+      list.innerHTML = manualMatches.map((m,idx)=>{
+        return `<div class="manual-match-row"><div><span>${teamName(m.team_a_id)}</span> vs <span>${teamName(m.team_b_id)}</span> — <span>${umpires.find(u=>u.umpire_id===m.umpire_id)?.name || 'No umpire'}</span></div><button type="button" data-i="${idx}">Remove</button></div>`;
+      }).join('');
+      list.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',e=>{manualMatches.splice(parseInt(e.target.dataset.i,10),1); renderManualMatches();}));
+    }
 
-document.querySelectorAll('.tab').forEach(button => {
-  button.addEventListener('click', () => switchTab(button.dataset.tab));
-});
-document.getElementById('group-knockout-stage').addEventListener('change', renderGroupKnockoutBuilder);
+    function teamName(id){ const t = teams.find(x=>x.team_id===id); return t? t.team_name : id; }
 
-loadTeams();
-loadUmpires();
-renderLiveBrackets();
-</script>
+    function downloadMatchesExcel(matchList, fileName){
+      if(!matchList.length){ alert('No fixtures to export'); return; }
+      const header = ['Stage','Team A','Team B','Umpire'];
+      const rows = matchList.map(f=>[f.stage_name || f.group_name || 'Manual', teamName(f.team_a_id), teamName(f.team_b_id), umpires.find(u=>u.umpire_id===f.umpire_id)?.name||'']);
+      const table = '<table border="1"><tr>'+header.map(h=>`<th style="background:#eee;padding:6px">${h}</th>`).join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(c=>`<td style="padding:6px">${escapeHtml(c)}</td>`).join('')+'</tr>').join('')+'</table>';
+      const blob = new Blob([table], {type:'application/vnd.ms-excel'});
+      const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    function downloadMatchesPDF(matchList){
+      if(!matchList.length){ alert('No fixtures to export'); return; }
+      const header = ['Stage','Team A','Team B','Umpire'];
+      const rows = matchList.map(f=>[f.stage_name || f.group_name || 'Manual', teamName(f.team_a_id), teamName(f.team_b_id), umpires.find(u=>u.umpire_id===f.umpire_id)?.name||'']);
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Fixtures</title><style>body{font-family:Arial;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}th{background:#f3f4f6}</style></head><body><h2>${escapeHtml(document.querySelector('h1').textContent)}</h2><table><tr>${header.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+      const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.document.focus(); setTimeout(()=>w.print(),250);
+    }
+
+
+    function sendSavePayload(draws, scope){
+      const payload = {tournament_id: tournamentId, draws, scope};
+      fetch('/api/matches/batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+        .then(r=>r.json())
+        .then(j=>{ if(j.success){ alert('Saved'); window.location.href='/tournaments'; } else alert('Save failed: '+(j.error||'')); })
+        .catch(()=>alert('Save failed'));
+    }
+
+    function saveGroupMatches(){
+      if(!fixtures.length){ alert('No group fixtures to save'); return; }
+      sendSavePayload(fixtures, 'group');
+    }
+
+    function saveManualMatches(){
+      if(!manualMatches.length){ alert('No manual matches to save'); return; }
+      sendSavePayload(manualMatches, 'manual');
+    }
+
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+
+    // init
+    el('generate-groups').addEventListener('click',generateGroups);
+    el('generate-fixtures').addEventListener('click',generateFixtures);
+    el('export-group-excel').addEventListener('click',()=>downloadMatchesExcel(fixtures, `group-fixtures-${tournamentId}.xls`));
+    el('export-group-pdf').addEventListener('click',()=>downloadMatchesPDF(fixtures));
+    el('export-manual-excel').addEventListener('click',()=>downloadMatchesExcel(manualMatches, `manual-fixtures-${tournamentId}.xls`));
+    el('export-manual-pdf').addEventListener('click',()=>downloadMatchesPDF(manualMatches));
+    el('save-group-draws').addEventListener('click',saveGroupMatches);
+    el('save-manual-draws').addEventListener('click',saveManualMatches);
+    el('create-manual-match').addEventListener('click',addManualMatch);
+    el('back-list').addEventListener('click',()=>location.href='/tournaments');
+
+    // load
+    fetchData();
+  })();
+  </script>
 </body>
 </html>
