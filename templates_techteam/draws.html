@@ -54,6 +54,9 @@
     .bracket-slot select{width:100%;padding:6px}
     .bracket-meta{font-size:12px;color:#6b7280;margin-top:6px}
     .knockout-empty{padding:28px;text-align:center;color:#6b7280;border:1px dashed #d1d5db;border-radius:8px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+    .modal-card{background:#fff;border-radius:10px;padding:18px;max-width:420px;width:100%;box-shadow:0 20px 45px rgba(0,0,0,.25)}
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
     @media print{.sidebar,.tabs,button{display:none}}
   </style>
 </head>
@@ -134,22 +137,40 @@
         <section id="knockout-panel" class="panel" style="display:none">
           <div class="card">
             <h3>Knockout Draw Builder</h3>
-            <p class="muted">Create a power-of-two bracket, place teams, assign byes, and select winners to advance.</p>
-            <div class="knockout-toolbar">
-              <label>Stage Name<input id="knockout-stage-name" value="Knockout Stage"></label>
-              <label>Bye Mode<select id="knockout-bye-mode"><option value="automatic">Automatic byes</option><option value="manual">Choose bye teams</option></select></label>
-              <label style="display:flex;align-items:center;gap:8px;font-weight:400"><input id="knockout-shuffle" type="checkbox" checked> Randomize first round</label>
+            <p class="muted">Build the bracket in three guided steps: choose the team count, set the bye/buy mode, then create the draw and finish the matches.</p>
+
+            <div class="card" style="margin-top:12px">
+              <h3>Step 1 — How many teams will play in knockouts?</h3>
+              <div class="knockout-toolbar">
+                <label>Number of Teams<input id="knockout-team-count" type="number" min="2" value="4" placeholder="e.g. 8"></label>
+                <label>Stage Name<input id="knockout-stage-name" value="Knockout Stage"></label>
+                <label style="display:flex;align-items:center;gap:8px;font-weight:400"><input id="knockout-shuffle" type="checkbox" checked> Randomize first round</label>
+              </div>
             </div>
-            <div id="knockout-bye-picker" class="bye-picker" style="display:none"></div>
-            <div class="knockout-actions">
-              <button id="generate-knockout">Create Knockout Draw</button>
-              <button id="edit-knockout" class="secondary" disabled>Set First-Round Teams</button>
-              <button id="cancel-knockout-edit" class="secondary" style="display:none">Cancel Editing</button>
-              <button id="reset-knockout" class="secondary" disabled>Reset Winners</button>
-              <button id="save-knockout" class="secondary" disabled>Save Knockout Matches</button>
-              <button id="export-knockout-excel" disabled>Download Excel</button>
-              <button id="export-knockout-pdf" disabled>Download PDF</button>
+
+            <div class="card" style="margin-top:12px">
+              <h3>Step 2 — Bye / Buy Mode</h3>
+              <div class="knockout-toolbar">
+                <label>Bye Mode<select id="knockout-bye-mode"><option value="automatic">Automatic byes</option><option value="manual">Choose teams who get buys</option></select></label>
+              </div>
+              <div id="knockout-bye-picker" class="bye-picker" style="display:none"></div>
             </div>
+
+            <div class="card" style="margin-top:12px">
+              <h3>Step 3 — Create knockout draws</h3>
+              <p class="muted">Set first-round teams, assign umpires for each match except buys, and then finish the draw.</p>
+              <div class="knockout-actions">
+                <button id="generate-knockout">Create Knockout Draw</button>
+                <button id="edit-knockout" class="secondary" disabled>Set First-Round Teams</button>
+                <button id="cancel-knockout-edit" class="secondary" style="display:none">Cancel Editing</button>
+                <button id="reset-knockout" class="secondary" disabled>Reset Winners</button>
+                <button id="save-knockout" class="secondary" disabled>Save Knockout Matches</button>
+                <button id="save-overall-draw" class="secondary" disabled>Save Overall Draw</button>
+                <button id="export-knockout-excel" disabled>Download Excel</button>
+                <button id="export-knockout-pdf" disabled>Download PDF</button>
+              </div>
+            </div>
+
             <div id="knockout-summary" class="knockout-summary muted">No knockout draw created</div>
             <div id="knockout-bracket" class="bracket-viewport">
               <div class="knockout-empty">Create a draw to see the live bracket.</div>
@@ -162,6 +183,17 @@
         </section>
       </div>
     </main>
+  </div>
+
+  <div id="knockout-confirm-modal" class="modal-backdrop" style="display:none">
+    <div class="modal-card">
+      <h3>Save Knockout Draw</h3>
+      <p>Are you sure you want to save it or not?</p>
+      <div class="modal-actions">
+        <button type="button" id="knockout-confirm-no">No</button>
+        <button type="button" id="knockout-confirm-yes" class="secondary">Yes</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -389,28 +421,40 @@
       return copy;
     }
 
+    function getKnockoutTeamPool(){
+      const available = [...teams];
+      if(!available.length) return [];
+      const requested = parseInt(el('knockout-team-count').value || '', 10);
+      const count = Number.isFinite(requested) && requested > 0 ? requested : available.length;
+      if(count > available.length){ alert(`Only ${available.length} teams are available for this tournament.`); return null; }
+      return available.slice(0, count);
+    }
+
     function renderByePicker(){
       const picker = el('knockout-bye-picker');
-      const size = nextPowerOfTwo(teams.length);
-      const byeCount = size - teams.length;
+      const pool = getKnockoutTeamPool();
+      if(!pool || !pool.length){ picker.style.display='none'; picker.innerHTML=''; return; }
+      const size = nextPowerOfTwo(pool.length);
+      const byeCount = size - pool.length;
       if(el('knockout-bye-mode').value !== 'manual' || !byeCount){ picker.style.display='none'; picker.innerHTML=''; return; }
       picker.style.display='flex';
-      picker.innerHTML = `<strong style="width:100%">Choose ${byeCount} bye team${byeCount === 1 ? '' : 's'}:</strong>` + teams.map(t=>`<label><input type="checkbox" value="${t.team_id}">${escapeHtml(t.team_name)}</label>`).join('');
+      picker.innerHTML = `<strong style="width:100%">Choose ${byeCount} bye team${byeCount === 1 ? '' : 's'}:</strong>` + pool.map(t=>`<label><input type="checkbox" value="${t.team_id}">${escapeHtml(t.team_name)}</label>`).join('');
       picker.querySelectorAll('input').forEach(input=>input.addEventListener('change',()=>{
         const selected = [...picker.querySelectorAll('input:checked')];
         if(selected.length > byeCount){ input.checked=false; alert(`Select only ${byeCount} bye team${byeCount === 1 ? '' : 's'}.`); }
       }));
     }
 
-    function knockoutSlots(){
-      const size = nextPowerOfTwo(teams.length);
-      const byeCount = size - teams.length;
+    function knockoutSlots(teamPool = getKnockoutTeamPool()){
+      if(!teamPool || teamPool.length < 2){ return null; }
+      const size = nextPowerOfTwo(teamPool.length);
+      const byeCount = size - teamPool.length;
       const selectedByes = el('knockout-bye-mode').value === 'manual'
         ? [...el('knockout-bye-picker').querySelectorAll('input:checked')].map(input=>input.value)
         : [];
       if(selectedByes.length !== 0 && selectedByes.length !== byeCount){ alert(`Select exactly ${byeCount} bye team${byeCount === 1 ? '' : 's'}.`); return null; }
       const byeSet = new Set(selectedByes);
-      const ordered = el('knockout-shuffle').checked ? shuffleList(teams) : [...teams];
+      const ordered = el('knockout-shuffle').checked ? shuffleList(teamPool) : [...teamPool];
       const byes = byeCount ? (selectedByes.length ? ordered.filter(t=>byeSet.has(t.team_id)) : ordered.slice(0, byeCount)) : [];
       const players = ordered.filter(t=>!byes.some(b=>b.team_id===t.team_id));
       const slots = [];
@@ -420,8 +464,9 @@
     }
 
     function createKnockout(){
-      if(teams.length < 2){ alert('At least two teams are required to create a knockout draw.'); return; }
-      const slotData = knockoutSlots();
+      const teamPool = getKnockoutTeamPool();
+      if(!teamPool || teamPool.length < 2){ alert('At least two teams are required to create a knockout draw.'); return; }
+      const slotData = knockoutSlots(teamPool);
       if(!slotData) return;
       const rounds = [];
       let matchCount = slotData.size / 2;
@@ -432,7 +477,7 @@
       }
       rounds.push({name:knockoutRoundName(matchCount),matches:firstMatches});
       while(matchCount > 1){ matchCount /= 2; rounds.push({name:knockoutRoundName(matchCount),matches:Array.from({length:matchCount},()=>({team_a_id:null,team_b_id:null,winner:null,is_bye:false,umpire_id:''}))}); }
-      knockoutBracket = {size:slotData.size,totalTeams:teams.length,byeCount:slotData.byeCount,rounds,champion:null,stage:el('knockout-stage-name').value.trim()||'Knockout Stage'};
+      knockoutBracket = {size:slotData.size,totalTeams:teamPool.length,byeCount:slotData.byeCount,rounds,champion:null,stage:el('knockout-stage-name').value.trim()||'Knockout Stage'};
       knockoutEditing=false; knockoutSnapshot=null; recalculateKnockout(); renderKnockout();
     }
 
@@ -467,7 +512,7 @@
         const [ri,mi]=e.target.dataset.knockoutUmpire.split(':').map(Number);
         knockoutBracket.rounds[ri].matches[mi].umpire_id=e.target.value;
       }));
-      ['edit-knockout','reset-knockout','save-knockout','export-knockout-excel','export-knockout-pdf'].forEach(id=>el(id).disabled=false);
+      ['edit-knockout','reset-knockout','save-knockout','save-overall-draw','export-knockout-excel','export-knockout-pdf'].forEach(id=>el(id).disabled=false);
       el('cancel-knockout-edit').style.display=knockoutEditing?'inline-block':'none';
       el('edit-knockout').textContent=knockoutEditing?'Save First-Round Teams':'Set First-Round Teams';
     }
@@ -499,6 +544,49 @@
 
     function saveKnockout(){ const rows=knockoutDrawRows(); if(!rows.length){alert('Select at least one complete knockout match.');return;} sendSavePayload(rows,'knockout'); }
 
+    function showOverallSaveModal(){
+      if(!knockoutBracket){ alert('Create a knockout draw first.'); return; }
+      el('knockout-confirm-modal').style.display='flex';
+    }
+
+    function closeOverallSaveModal(){
+      el('knockout-confirm-modal').style.display='none';
+    }
+
+    function saveOverallDraw(){
+      if(!knockoutBracket){ alert('Create a knockout draw first.'); return; }
+      const payload = {
+        tournament_id: tournamentId,
+        stage_name: el('knockout-stage-name').value.trim() || 'Knockout Stage',
+        team_count: parseInt(el('knockout-team-count').value || '0', 10) || knockoutBracket.totalTeams,
+        bye_mode: el('knockout-bye-mode').value,
+        shuffle: el('knockout-shuffle').checked,
+        bracket: knockoutBracket
+      };
+      fetch('/api/knockout-draw', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+        .then(r=>r.json())
+        .then(j=>{ if(j.success){ alert('Saved successfully'); } else { alert('Save failed: '+(j.error||'')); } closeOverallSaveModal(); })
+        .catch(()=>{ alert('Save failed'); closeOverallSaveModal(); });
+    }
+
+    function loadSavedKnockoutDraw(){
+      fetch(`/api/knockout-draw?tournament_id=${encodeURIComponent(tournamentId)}`)
+        .then(r=>r.json())
+        .then(data=>{
+          if(!data || !data.bracket || !data.bracket.rounds){ return; }
+          el('knockout-stage-name').value = data.stage_name || 'Knockout Stage';
+          el('knockout-team-count').value = data.team_count || data.bracket.totalTeams || '';
+          el('knockout-bye-mode').value = data.bye_mode || 'automatic';
+          el('knockout-shuffle').checked = data.shuffle !== false;
+          knockoutBracket = data.bracket;
+          knockoutEditing = false;
+          knockoutSnapshot = null;
+          recalculateKnockout();
+          renderKnockout();
+          renderByePicker();
+        })
+        .catch(()=>{});
+    }
 
     function sendSavePayload(draws, scope){
       const payload = {tournament_id: tournamentId, draws, scope};
@@ -530,6 +618,9 @@
     el('save-group-draws').addEventListener('click',saveGroupMatches);
     el('save-manual-draws').addEventListener('click',saveManualMatches);
     el('create-manual-match').addEventListener('click',addManualMatch);
+    el('save-overall-draw').addEventListener('click',showOverallSaveModal);
+    el('knockout-confirm-no').addEventListener('click',closeOverallSaveModal);
+    el('knockout-confirm-yes').addEventListener('click',saveOverallDraw);
     el('knockout-bye-mode').addEventListener('change',renderByePicker);
     el('generate-knockout').addEventListener('click',createKnockout);
     el('edit-knockout').addEventListener('click',()=>{
@@ -553,7 +644,10 @@
     el('back-list').addEventListener('click',()=>location.href='/tournaments');
 
     // load
-    fetchData().then(renderByePicker);
+    fetchData().then(()=>{
+      renderByePicker();
+      loadSavedKnockoutDraw();
+    });
   })();
   </script>
 </body>

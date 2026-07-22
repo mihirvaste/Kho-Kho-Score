@@ -1,4 +1,4 @@
-from backend import run
+from backend.app import run
 
 
 if __name__ == "__main__":

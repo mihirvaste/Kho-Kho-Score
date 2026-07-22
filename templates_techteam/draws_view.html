@@ -122,11 +122,20 @@
             <td>${escapeHtml(r.win_type || '')}</td>
             <td>${escapeHtml(r.win_margin || '')}</td>
             <td>${escapeHtml(r.umpire_id || '')}</td>
-            <td><button type="button" class="delete-btn btn-danger" data-id="${escapeHtml(r.match_id)}">Delete</button></td>
+            <td>
+              <button type="button" class="download-score-btn secondary" data-id="${escapeHtml(r.match_id)}">Download Score Sheet</button>
+              <button type="button" class="delete-btn btn-danger" data-id="${escapeHtml(r.match_id)}">Delete</button>
+            </td>
           </tr>
         `).join('');
 
-        // wire up delete buttons
+        body.querySelectorAll('.download-score-btn').forEach(btn=>{
+          btn.addEventListener('click', e=>{
+            const id = e.currentTarget.dataset.id;
+            window.location.href = `/api/matches/${encodeURIComponent(id)}/score-sheet`;
+          });
+        });
+
         body.querySelectorAll('.delete-btn').forEach(btn=>{
           btn.addEventListener('click', e=>{
             const id = e.currentTarget.dataset.id;

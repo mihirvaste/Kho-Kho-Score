@@ -4,6 +4,8 @@ import json
 import re
 import sqlite3
 import secrets
+import zipfile
+import xml.sax.saxutils as saxutils
 from contextlib import closing
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -55,6 +57,11 @@ def setup_database():
         )
         db.execute(
             "CREATE TABLE IF NOT EXISTS matches (match_id TEXT PRIMARY KEY, draw_id TEXT, match_number INTEGER NOT NULL, tournament_id TEXT, group_name TEXT, stage_name TEXT, team_a_id TEXT, team_b_id TEXT, match_status TEXT, is_follow_on_enforced INTEGER DEFAULT 0, final_winner_id TEXT, win_type TEXT, win_margin TEXT, umpire_id TEXT)"
+        )
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS knockout_draws ("
+            "tournament_id TEXT PRIMARY KEY, stage_name TEXT, team_count INTEGER, bye_mode TEXT, shuffle INTEGER, bracket_json TEXT, created_at TEXT, updated_at TEXT"
+            ")"
         )
         cursor = db.execute("PRAGMA table_info(matches)").fetchall()
         columns = [row[1] for row in cursor]
@@ -222,6 +229,179 @@ def save_draws(tournament_id, payload):
             pass
         return {'success': False, 'error': str(e)}
     return {'success': True, 'tournament_id': tournament_id}
+
+
+def save_knockout_draw(tournament_id, payload):
+    if not tournament_id:
+        return {'success': False, 'error': 'Tournament ID is required'}
+    bracket_json = json.dumps(payload.get('bracket') or {})
+    now = datetime.datetime.utcnow().isoformat()
+    try:
+        with closing(sqlite3.connect(DB_PATH)) as db:
+            db.execute("DELETE FROM knockout_draws WHERE tournament_id = ?", (tournament_id,))
+            db.execute(
+                "INSERT INTO knockout_draws (tournament_id, stage_name, team_count, bye_mode, shuffle, bracket_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    tournament_id,
+                    payload.get('stage_name') or 'Knockout Stage',
+                    payload.get('team_count'),
+                    payload.get('bye_mode') or 'automatic',
+                    1 if payload.get('shuffle') else 0,
+                    bracket_json,
+                    now,
+                    now,
+                ),
+            )
+            db.commit()
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+    return {'success': True, 'tournament_id': tournament_id}
+
+
+def get_knockout_draw(tournament_id):
+    if not tournament_id:
+        return None
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute(
+            "SELECT tournament_id, stage_name, team_count, bye_mode, shuffle, bracket_json, created_at, updated_at FROM knockout_draws WHERE tournament_id = ?",
+            (tournament_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        'tournament_id': row[0],
+        'stage_name': row[1],
+        'team_count': row[2],
+        'bye_mode': row[3],
+        'shuffle': bool(row[4]),
+        'bracket': json.loads(row[5] or '{}'),
+        'created_at': row[6],
+        'updated_at': row[7],
+    }
+
+
+def _build_match_score_sheet(match_id, match_row, teams, players, umpires):
+    team_a_name = match_row.get('team_a_name') or ''
+    team_b_name = match_row.get('team_b_name') or ''
+    umpire_name = ''
+    umpire_row = next((u for u in umpires if u.get('umpire_id') == match_row.get('umpire_id')), None)
+    if umpire_row:
+        umpire_name = umpire_row.get('name') or ''
+
+    team_a_players = [p for p in players if p.get('team_id') == match_row.get('team_a_id')]
+    team_b_players = [p for p in players if p.get('team_id') == match_row.get('team_b_id')]
+
+    rows = [
+        ['Match Score Sheet', ''],
+        ['Match ID', match_id],
+        ['Stage', match_row.get('stage_name') or ''],
+        ['Team A', team_a_name],
+        ['Team B', team_b_name],
+        ['Umpire', umpire_name],
+        [''],
+        ['Team A Players', ''],
+    ]
+    rows.extend([[p.get('player_name') or '', p.get('kkfi_number') or ''] for p in team_a_players])
+    rows.extend([[''], ['Team B Players', '']])
+    rows.extend([[p.get('player_name') or '', p.get('kkfi_number') or ''] for p in team_b_players])
+    rows.extend([[''], ['Notes', '']])
+
+    values = []
+    def add_value(value):
+        if value not in values:
+            values.append(value)
+        return values.index(value)
+
+    shared_strings = []
+    sheet_rows = []
+    for row in rows:
+        cells = []
+        for value in row:
+            if value is None:
+                value = ''
+            if isinstance(value, (int, float)):
+                value = str(value)
+            text = str(value)
+            if text not in shared_strings:
+                shared_strings.append(text)
+            cells.append((shared_strings.index(text), 's'))
+        sheet_rows.append(cells)
+
+    xml_rows = []
+    for row_index, cells in enumerate(sheet_rows, start=1):
+        xml_cells = []
+        for col_index, (shared_idx, cell_type) in enumerate(cells, start=1):
+            col_ref = ''
+            temp = col_index
+            while temp > 0:
+                temp, remainder = divmod(temp - 1, 26)
+                col_ref = chr(65 + remainder) + col_ref
+            ref = f"{col_ref}{row_index}"
+            xml_cells.append(f'<c r="{ref}" t="{cell_type}"><v>{shared_idx}</v></c>')
+        xml_rows.append(f'<row r="{row_index}">' + ''.join(xml_cells) + '</row>')
+
+    workbook_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Sheet1" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>'''
+    rels_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>'''
+    content_types_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+</Types>'''
+    styles_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
+  <borders count="1"><border/></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment horizontal="left"/></xf></cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0"/></cellStyles>
+</styleSheet>'''
+    app_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
+ xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>Microsoft Excel</Application>
+</Properties>'''
+    core_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+ xmlns:dc="http://purl.org/dc/elements/1.1/"
+ xmlns:dcterms="http://purl.org/dc/terms/"
+ xmlns:dcmitype="http://purl.org/dc/dcmitype/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>Match Score Sheet</dc:title>
+  <dc:creator>KhoKhoScore</dc:creator>
+  <cp:lastModifiedBy>KhoKhoScore</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">{datetime.datetime.utcnow().replace(microsecond=0).isoformat()}Z</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">{datetime.datetime.utcnow().replace(microsecond=0).isoformat()}Z</dcterms:modified>
+</cp:coreProperties>'''
+
+    shared_strings_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="{0}" uniqueCount="{0}">{1}</sst>'.format(len(shared_strings), ''.join(f'<si><t>{saxutils.escape(text)}</t></si>' for text in shared_strings))
+    worksheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>{0}</sheetData></worksheet>'.format(''.join(xml_rows))
+
+    workbook_path = BASE_DIR / 'score-sheet' / f'{match_id}_score_sheet.xlsx'
+    with zipfile.ZipFile(workbook_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('xl/workbook.xml', workbook_xml)
+        zf.writestr('xl/_rels/workbook.xml.rels', rels_xml)
+        zf.writestr('xl/worksheets/sheet1.xml', worksheet_xml)
+        zf.writestr('xl/sharedStrings.xml', shared_strings_xml)
+        zf.writestr('xl/styles.xml', styles_xml)
+        zf.writestr('docProps/app.xml', app_xml)
+        zf.writestr('docProps/core.xml', core_xml)
+        zf.writestr('[Content_Types].xml', content_types_xml)
+    return workbook_path
 
 
 def get_manager_rows():
@@ -478,6 +658,15 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, {"teams": rows})
             return
 
+        if path == "/api/knockout-draw":
+            query = parse_qs(parsed.query)
+            tournament_id = query.get("tournament_id", [None])[0]
+            if tournament_id:
+                send_json(self, get_knockout_draw(tournament_id) or {"exists": False})
+            else:
+                send_json(self, {"exists": False})
+            return
+
         if path.startswith("/api/teams/"):
             team_id = path.rsplit("/", 1)[-1]
             with sqlite3.connect(DB_PATH) as db:
@@ -579,6 +768,38 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/matches/"):
             match_id = path.rsplit("/", 1)[-1]
+            if "/score-sheet" in path:
+                with sqlite3.connect(DB_PATH) as db:
+                    row = db.execute("SELECT match_id, draw_id, match_number, tournament_id, COALESCE(stage_name, group_name) AS stage_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin, umpire_id FROM matches WHERE match_id = ?", (match_id,)).fetchone()
+                    if row:
+                        match_row = {
+                            "match_id": row[0],
+                            "draw_id": row[1] or "",
+                            "match_number": row[2],
+                            "tournament_id": row[3],
+                            "stage_name": row[4],
+                            "team_a_id": row[5],
+                            "team_b_id": row[6],
+                            "match_status": row[7],
+                            "is_follow_on_enforced": bool(row[8]),
+                            "final_winner_id": row[9],
+                            "win_type": row[10],
+                            "win_margin": row[11],
+                            "umpire_id": row[12] or "",
+                        }
+                        teams = get_team_rows()
+                        players = get_player_rows()
+                        umpires = get_umpire_rows()
+                        file_path = _build_match_score_sheet(match_id, match_row, teams, players, umpires)
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                        self.send_header('Content-Disposition', f'attachment; filename="{file_path.name}"')
+                        self.end_headers()
+                        with file_path.open('rb') as fh:
+                            self.wfile.write(fh.read())
+                        return
+                    send_json(self, {"error": "Not found"}, status=404)
+                return
             with sqlite3.connect(DB_PATH) as db:
                 row = db.execute("SELECT match_id, draw_id, match_number, tournament_id, COALESCE(stage_name, group_name) AS stage_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin, umpire_id FROM matches WHERE match_id = ?", (match_id,)).fetchone()
             if row:
@@ -734,6 +955,12 @@ class Handler(BaseHTTPRequestHandler):
                     (tournament_id, data.get("name"), data.get("start_date"), data.get("end_date"), data.get("status"), data.get("tournament_for")),
                 )
             send_json(self, {"tournament_id": tournament_id}, status=201)
+            return
+
+        if path == "/api/knockout-draw" and self.session_token() in SESSIONS:
+            data = parse_json_body(self, length)
+            tournament_id = data.get("tournament_id")
+            send_json(self, save_knockout_draw(tournament_id, data), status=201)
             return
 
         if path == "/api/matches/batch" and self.session_token() in SESSIONS:
