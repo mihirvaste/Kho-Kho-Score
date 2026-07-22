@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 import secrets
+from contextlib import closing
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http import cookies
@@ -23,7 +24,7 @@ def password_hash(password, salt):
 
 
 def setup_database():
-    with sqlite3.connect(DB_PATH) as db:
+    with closing(sqlite3.connect(DB_PATH)) as db:
         db.execute(
             "CREATE TABLE IF NOT EXISTS techteams ("
             "tt_id TEXT PRIMARY KEY, name TEXT NOT NULL, password_hash TEXT NOT NULL, age INTEGER, gender TEXT, kkfi_number TEXT UNIQUE, phone TEXT, email TEXT UNIQUE, blocked INTEGER DEFAULT 0)"
@@ -161,7 +162,7 @@ def get_dashboard_stats():
 def save_draws(tournament_id, payload):
     draws = payload.get('draws', []) or []
     scope = payload.get('scope')
-    if scope not in ('group', 'manual'):
+    if scope not in ('group', 'manual', 'knockout'):
         return {'success': False, 'error': 'Invalid save scope'}
 
     # basic validation: no duplicate matches, teams not playing against themselves
@@ -177,7 +178,7 @@ def save_draws(tournament_id, payload):
         group_key = (
             d.get("group_name") or ""
             if scope == "group"
-            else "Manual"
+            else d.get("stage_name") or d.get("group_name") or "Manual"
         )
         key = tuple(sorted((str(a), str(b)))) + (group_key,)
 
@@ -185,11 +186,9 @@ def save_draws(tournament_id, payload):
             return {'success': False, 'error': 'Duplicate fixture detected'}
         seen.add(key)
 
-    delete_condition = "group_name != 'Manual'" if scope == 'group' else "group_name = 'Manual'"
     try:
-        with sqlite3.connect(DB_PATH) as db:
+        with closing(sqlite3.connect(DB_PATH)) as db:
             cur = db.cursor()
-            cur.execute(f'DELETE FROM matches WHERE tournament_id = ? AND {delete_condition}', (tournament_id,))
             row = cur.execute("SELECT MAX(CAST(SUBSTR(match_id, 3) AS INTEGER)) FROM matches").fetchone()
             max_index = row[0] if row and row[0] is not None else 0
             draw_id = f"DW{tournament_id[2:] if tournament_id.startswith('KT') else tournament_id}"

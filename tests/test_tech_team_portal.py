@@ -1,5 +1,7 @@
 import tempfile
 import unittest
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from backend import tech_team_app
@@ -82,10 +84,22 @@ class TechTeamPortalTests(unittest.TestCase):
                 }
                 result = tech_team_app.save_draws("KT0001", group_payload)
                 self.assertTrue(result["success"])
-                with sqlite3.connect(temp_db) as db:
+                with closing(sqlite3.connect(temp_db)) as db:
                     rows = db.execute("SELECT group_name, team_a_id, team_b_id FROM matches WHERE tournament_id = ?", ("KT0001",)).fetchall()
                 self.assertEqual(len(rows), 1)
                 self.assertEqual(rows[0][0], "Group A")
+
+                second_group_payload = {
+                    "draws": [
+                        {"team_a_id": "TE0005", "team_b_id": "TE0006", "group_name": "Group B", "match_number": 1, "match_status": "Scheduled", "umpire_id": "UM0001"}
+                    ],
+                    "scope": "group"
+                }
+                result = tech_team_app.save_draws("KT0001", second_group_payload)
+                self.assertTrue(result["success"])
+                with closing(sqlite3.connect(temp_db)) as db:
+                    rows = db.execute("SELECT team_a_id, team_b_id FROM matches WHERE tournament_id = ? AND group_name != 'Manual'", ("KT0001",)).fetchall()
+                self.assertEqual(len(rows), 2)
 
                 manual_payload = {
                     "draws": [
@@ -95,13 +109,49 @@ class TechTeamPortalTests(unittest.TestCase):
                 }
                 result = tech_team_app.save_draws("KT0001", manual_payload)
                 self.assertTrue(result["success"])
-                with sqlite3.connect(temp_db) as db:
+                with closing(sqlite3.connect(temp_db)) as db:
                     manual_rows = db.execute("SELECT draw_id, group_name, stage_name, team_a_id, team_b_id, umpire_id FROM matches WHERE tournament_id = ? AND group_name = 'Manual'", ("KT0001",)).fetchall()
                 self.assertEqual(len(manual_rows), 1)
                 self.assertEqual(manual_rows[0][1], "Manual")
                 self.assertEqual(manual_rows[0][2], "Manual")
                 self.assertEqual(manual_rows[0][5], "UM0002")
                 self.assertTrue(manual_rows[0][0].startswith("DW"))
+
+                second_manual_payload = {
+                    "draws": [
+                        {"team_a_id": "TE0005", "team_b_id": "TE0006", "group_name": "Manual", "stage_name": "Manual", "match_number": 1, "match_status": "Scheduled", "umpire_id": "UM0003"}
+                    ],
+                    "scope": "manual"
+                }
+                result = tech_team_app.save_draws("KT0001", second_manual_payload)
+                self.assertTrue(result["success"])
+                with closing(sqlite3.connect(temp_db)) as db:
+                    manual_rows = db.execute("SELECT team_a_id, team_b_id FROM matches WHERE tournament_id = ? AND group_name = 'Manual'", ("KT0001",)).fetchall()
+                self.assertEqual(len(manual_rows), 2)
+            finally:
+                tech_team_app.DB_PATH = previous_db
+
+    def test_save_draws_persists_knockout_rounds(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            temp_db = Path(tmp_dir) / "login.db"
+            previous_db = tech_team_app.DB_PATH
+            tech_team_app.DB_PATH = temp_db
+            try:
+                tech_team_app.setup_database()
+                result = tech_team_app.save_draws("KT0001", {
+                    "scope": "knockout",
+                    "draws": [
+                        {"team_a_id": "TE0001", "team_b_id": "TE0002", "group_name": "Quarter Final", "stage_name": "Knockout Stage - Quarter Final", "match_number": 1, "match_status": "Scheduled"},
+                        {"team_a_id": "TE0003", "team_b_id": "TE0004", "group_name": "Semi Final", "stage_name": "Knockout Stage - Semi Final", "match_number": 101, "match_status": "Scheduled"},
+                    ],
+                })
+                self.assertTrue(result["success"])
+                with closing(sqlite3.connect(temp_db)) as db:
+                    rows = db.execute("SELECT stage_name, team_a_id, team_b_id FROM matches ORDER BY match_number").fetchall()
+                self.assertEqual(rows, [
+                    ("Knockout Stage - Quarter Final", "TE0001", "TE0002"),
+                    ("Knockout Stage - Semi Final", "TE0003", "TE0004"),
+                ])
             finally:
                 tech_team_app.DB_PATH = previous_db
 

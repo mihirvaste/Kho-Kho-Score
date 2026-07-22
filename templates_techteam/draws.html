@@ -30,6 +30,30 @@
     .manual-match-row span{font-weight:600}
     .manual-match-row button{background:#dc2626}
     .umpires-list{margin-top:12px}
+    .knockout-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+    .knockout-toolbar label{flex:1;min-width:180px}
+    .knockout-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .knockout-summary{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;color:#374151}
+    .knockout-summary strong{color:#111827}
+    .bye-picker{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .bye-picker label{font-weight:400;background:#f9fafb;padding:8px;border:1px solid #e5e7eb;border-radius:6px}
+    .bracket-viewport{overflow-x:auto;padding:8px 2px 14px}
+    .bracket-canvas{position:relative;display:flex;align-items:stretch;gap:18px;min-width:max-content}
+    .round-column{position:relative;z-index:2;display:flex;flex-direction:column;min-width:210px}
+    .connector-layer{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1}
+    .connector-layer path{fill:none;stroke:#94a3b8;stroke-width:1.5;vector-effect:non-scaling-stroke}
+    .round-title{font-weight:700;text-align:center;color:#0369a1;margin-bottom:10px}
+    .round-matches{display:flex;flex:1;flex-direction:column;justify-content:space-around;gap:10px}
+    .bracket-match{border:1px solid #d1d5db;border-radius:8px;background:#fff;padding:8px;box-shadow:0 1px 2px #0000000d}
+    .bracket-match.bye{background:#f0fdf4;border-color:#86efac}
+    .bracket-match.pending{opacity:.72}
+    .bracket-slot{display:flex;align-items:center;gap:6px;min-height:34px;padding:4px 6px;border-bottom:1px solid #e5e7eb}
+    .bracket-slot:last-child{border-bottom:0}
+    .bracket-slot button{flex:1;text-align:left;background:#f8fafc;color:#111827;border:1px solid #e5e7eb}
+    .bracket-slot button.winner{background:#dcfce7;border-color:#16a34a;font-weight:700}
+    .bracket-slot select{width:100%;padding:6px}
+    .bracket-meta{font-size:12px;color:#6b7280;margin-top:6px}
+    .knockout-empty{padding:28px;text-align:center;color:#6b7280;border:1px dashed #d1d5db;border-radius:8px}
     @media print{.sidebar,.tabs,button{display:none}}
   </style>
 </head>
@@ -108,7 +132,29 @@
         </section>
 
         <section id="knockout-panel" class="panel" style="display:none">
-          <div class="card"><h3>Knockouts</h3><p class="muted">(Placeholder — will implement on request)</p></div>
+          <div class="card">
+            <h3>Knockout Draw Builder</h3>
+            <p class="muted">Create a power-of-two bracket, place teams, assign byes, and select winners to advance.</p>
+            <div class="knockout-toolbar">
+              <label>Stage Name<input id="knockout-stage-name" value="Knockout Stage"></label>
+              <label>Bye Mode<select id="knockout-bye-mode"><option value="automatic">Automatic byes</option><option value="manual">Choose bye teams</option></select></label>
+              <label style="display:flex;align-items:center;gap:8px;font-weight:400"><input id="knockout-shuffle" type="checkbox" checked> Randomize first round</label>
+            </div>
+            <div id="knockout-bye-picker" class="bye-picker" style="display:none"></div>
+            <div class="knockout-actions">
+              <button id="generate-knockout">Create Knockout Draw</button>
+              <button id="edit-knockout" class="secondary" disabled>Set First-Round Teams</button>
+              <button id="cancel-knockout-edit" class="secondary" style="display:none">Cancel Editing</button>
+              <button id="reset-knockout" class="secondary" disabled>Reset Winners</button>
+              <button id="save-knockout" class="secondary" disabled>Save Knockout Matches</button>
+              <button id="export-knockout-excel" disabled>Download Excel</button>
+              <button id="export-knockout-pdf" disabled>Download PDF</button>
+            </div>
+            <div id="knockout-summary" class="knockout-summary muted">No knockout draw created</div>
+            <div id="knockout-bracket" class="bracket-viewport">
+              <div class="knockout-empty">Create a draw to see the live bracket.</div>
+            </div>
+          </div>
         </section>
 
         <section id="league-panel" class="panel" style="display:none">
@@ -126,6 +172,9 @@
     let groups = [];
     let fixtures = [];
     let manualMatches = [];
+    let knockoutBracket = null;
+    let knockoutEditing = false;
+    let knockoutSnapshot = null;
 
     function el(id){return document.getElementById(id)}
 
@@ -270,6 +319,186 @@
       const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.document.focus(); setTimeout(()=>w.print(),250);
     }
 
+    function drawKnockoutConnectors(canvas){
+      const existing=canvas.querySelector('.connector-layer');
+      if(existing) existing.remove();
+      const canvasRect=canvas.getBoundingClientRect();
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.classList.add('connector-layer');
+      svg.setAttribute('width',canvas.scrollWidth);
+      svg.setAttribute('height',canvas.scrollHeight);
+      knockoutBracket.rounds.slice(0,-1).forEach((round,ri)=>{
+        round.matches.forEach((match,mi)=>{
+          const source=canvas.querySelector(`[data-round="${ri}"][data-match="${mi}"]`);
+          const target=canvas.querySelector(`[data-round="${ri+1}"][data-match="${Math.floor(mi/2)}"]`);
+          if(!source||!target)return;
+          const sourceRect=source.getBoundingClientRect(), targetRect=target.getBoundingClientRect();
+          const startX=sourceRect.right-canvasRect.left, startY=sourceRect.top+sourceRect.height/2-canvasRect.top;
+          const endX=targetRect.left-canvasRect.left, endY=targetRect.top+targetRect.height/2-canvasRect.top;
+          const midX=startX+(endX-startX)/2;
+          const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+          path.setAttribute('d',`M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`);
+          svg.appendChild(path);
+        });
+      });
+      canvas.prepend(svg);
+    }
+
+    function renderKnockoutBracketMarkup(){
+      return knockoutBracket.rounds.map((round,ri)=>`<section class="round-column"><div class="round-title">${escapeHtml(round.name)}</div><div class="round-matches">${round.matches.map((match,mi)=>renderKnockoutMatch(match,ri,mi)).join('')}</div></section>`).join('');
+    }
+
+    function exportKnockoutBracketPDF(){
+      if(!knockoutBracket){ alert('Create a knockout draw first.'); return; }
+      const rows=knockoutDrawRows();
+      if(!rows.length){ alert('There are no knockout matches to export.'); return; }
+      const popup=window.open('','_blank');
+      if(!popup){ alert('Allow pop-ups to export the knockout draw.'); return; }
+      const canvasMarkup=renderKnockoutBracketMarkup();
+      popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Knockout Draw - ${escapeHtml(document.querySelector('h1').textContent)}</title><style>
+        @page{size:landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827}h1{font-size:20px;margin:0 0 4px}p{color:#64748b;margin:0 0 14px;font-size:12px}.bracket-viewport{overflow:visible}.bracket-canvas{position:relative;display:flex;align-items:stretch;gap:24px;min-width:1040px;padding:4px}.round-column{position:relative;z-index:2;display:flex;flex-direction:column;min-width:210px}.round-title{font-weight:700;text-align:center;color:#0369a1;margin-bottom:10px}.round-matches{display:flex;flex:1;flex-direction:column;justify-content:space-around;gap:10px}.bracket-match{border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:8px;box-shadow:0 1px 2px #0000000d}.bracket-match.bye{background:#f0fdf4;border-color:#86efac}.bracket-match.pending{opacity:.72}.bracket-slot{display:flex;align-items:center;gap:6px;min-height:28px;padding:3px 6px;border-bottom:1px solid #e5e7eb}.bracket-slot:last-child{border-bottom:0}.bracket-slot button{width:100%;text-align:left;background:#0369a1;color:#fff;border:0;border-radius:6px;padding:7px}.bracket-slot button:disabled{opacity:.72}.bracket-meta{font-size:11px;color:#64748b;margin-top:5px}.connector-layer{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1}.connector-layer path{fill:none;stroke:#94a3b8;stroke-width:1.5}.bracket-match select{display:none}@media print{.bracket-canvas{break-inside:avoid}}
+      </style></head><body><h1>${escapeHtml(document.querySelector('h1').textContent)}</h1><p>${knockoutBracket.totalTeams} teams | ${knockoutBracket.size} bracket slots | ${knockoutBracket.byeCount} byes${knockoutBracket.champion?` | Champion: ${escapeHtml(teamName(knockoutBracket.champion))}`:''}</p><div class="bracket-viewport"><div id="pdf-bracket" class="bracket-canvas">${canvasMarkup}</div></div></body></html>`);
+      popup.document.close();
+      const pdfCanvas=popup.document.getElementById('pdf-bracket');
+      const canvasRect=pdfCanvas.getBoundingClientRect();
+      const svg=popup.document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.classList.add('connector-layer'); svg.setAttribute('width',pdfCanvas.scrollWidth); svg.setAttribute('height',pdfCanvas.scrollHeight);
+      knockoutBracket.rounds.slice(0,-1).forEach((round,ri)=>round.matches.forEach((match,mi)=>{
+        const source=pdfCanvas.querySelector(`[data-round="${ri}"][data-match="${mi}"]`), target=pdfCanvas.querySelector(`[data-round="${ri+1}"][data-match="${Math.floor(mi/2)}"]`);
+        if(!source||!target)return;
+        const a=source.getBoundingClientRect(), b=target.getBoundingClientRect(), sx=a.right-canvasRect.left, sy=a.top+a.height/2-canvasRect.top, ex=b.left-canvasRect.left, ey=b.top+b.height/2-canvasRect.top, mx=sx+(ex-sx)/2;
+        const path=popup.document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('d',`M ${sx} ${sy} H ${mx} V ${ey} H ${ex}`); svg.appendChild(path);
+      }));
+      pdfCanvas.prepend(svg);
+      popup.focus(); setTimeout(()=>popup.print(),300);
+    }
+
+    function nextPowerOfTwo(value){ return value < 2 ? 2 : 2 ** Math.ceil(Math.log2(value)); }
+
+    function knockoutRoundName(matchCount){
+      if(matchCount === 1) return 'Final';
+      if(matchCount === 2) return 'Semi Final';
+      if(matchCount === 4) return 'Quarter Final';
+      if(matchCount === 8) return 'Round of 16';
+      return `Round of ${matchCount * 2}`;
+    }
+
+    function shuffleList(items){
+      const copy = [...items];
+      for(let i=copy.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [copy[i],copy[j]]=[copy[j],copy[i]]; }
+      return copy;
+    }
+
+    function renderByePicker(){
+      const picker = el('knockout-bye-picker');
+      const size = nextPowerOfTwo(teams.length);
+      const byeCount = size - teams.length;
+      if(el('knockout-bye-mode').value !== 'manual' || !byeCount){ picker.style.display='none'; picker.innerHTML=''; return; }
+      picker.style.display='flex';
+      picker.innerHTML = `<strong style="width:100%">Choose ${byeCount} bye team${byeCount === 1 ? '' : 's'}:</strong>` + teams.map(t=>`<label><input type="checkbox" value="${t.team_id}">${escapeHtml(t.team_name)}</label>`).join('');
+      picker.querySelectorAll('input').forEach(input=>input.addEventListener('change',()=>{
+        const selected = [...picker.querySelectorAll('input:checked')];
+        if(selected.length > byeCount){ input.checked=false; alert(`Select only ${byeCount} bye team${byeCount === 1 ? '' : 's'}.`); }
+      }));
+    }
+
+    function knockoutSlots(){
+      const size = nextPowerOfTwo(teams.length);
+      const byeCount = size - teams.length;
+      const selectedByes = el('knockout-bye-mode').value === 'manual'
+        ? [...el('knockout-bye-picker').querySelectorAll('input:checked')].map(input=>input.value)
+        : [];
+      if(selectedByes.length !== 0 && selectedByes.length !== byeCount){ alert(`Select exactly ${byeCount} bye team${byeCount === 1 ? '' : 's'}.`); return null; }
+      const byeSet = new Set(selectedByes);
+      const ordered = el('knockout-shuffle').checked ? shuffleList(teams) : [...teams];
+      const byes = byeCount ? (selectedByes.length ? ordered.filter(t=>byeSet.has(t.team_id)) : ordered.slice(0, byeCount)) : [];
+      const players = ordered.filter(t=>!byes.some(b=>b.team_id===t.team_id));
+      const slots = [];
+      for(let i=0;i<byes.length;i++) slots.push(byes[i], null);
+      while(players.length) slots.push(players.shift(), players.shift() || null);
+      return {slots,size,byeCount};
+    }
+
+    function createKnockout(){
+      if(teams.length < 2){ alert('At least two teams are required to create a knockout draw.'); return; }
+      const slotData = knockoutSlots();
+      if(!slotData) return;
+      const rounds = [];
+      let matchCount = slotData.size / 2;
+      const firstMatches = [];
+      for(let i=0;i<slotData.slots.length;i+=2){
+        const teamA = slotData.slots[i]?.team_id || null, teamB = slotData.slots[i+1]?.team_id || null;
+        firstMatches.push({team_a_id:teamA,team_b_id:teamB,winner:teamA&&!teamB?teamA:teamB&&!teamA?teamB:null,is_bye:Boolean(teamA)!==Boolean(teamB),umpire_id:''});
+      }
+      rounds.push({name:knockoutRoundName(matchCount),matches:firstMatches});
+      while(matchCount > 1){ matchCount /= 2; rounds.push({name:knockoutRoundName(matchCount),matches:Array.from({length:matchCount},()=>({team_a_id:null,team_b_id:null,winner:null,is_bye:false,umpire_id:''}))}); }
+      knockoutBracket = {size:slotData.size,totalTeams:teams.length,byeCount:slotData.byeCount,rounds,champion:null,stage:el('knockout-stage-name').value.trim()||'Knockout Stage'};
+      knockoutEditing=false; knockoutSnapshot=null; recalculateKnockout(); renderKnockout();
+    }
+
+    function recalculateKnockout(){
+      if(!knockoutBracket) return;
+      const first = knockoutBracket.rounds[0].matches;
+      first.forEach(match=>{ match.is_bye=Boolean(match.team_a_id)!==Boolean(match.team_b_id); if(match.is_bye) match.winner=match.team_a_id||match.team_b_id; else if(match.winner!==match.team_a_id&&match.winner!==match.team_b_id) match.winner=null; });
+      for(let roundIndex=1;roundIndex<knockoutBracket.rounds.length;roundIndex++){
+        const previous=knockoutBracket.rounds[roundIndex-1].matches;
+        knockoutBracket.rounds[roundIndex].matches.forEach((match,index)=>{ match.team_a_id=previous[index*2]?.winner||null; match.team_b_id=previous[index*2+1]?.winner||null; match.is_bye=false; if(match.winner!==match.team_a_id&&match.winner!==match.team_b_id) match.winner=null; });
+      }
+      const finalMatch=knockoutBracket.rounds.at(-1).matches[0]; knockoutBracket.champion=finalMatch.winner||null;
+    }
+
+    function knockoutTeamOptions(current){
+      return ['<option value="">BYE</option>',...teams.map(t=>`<option value="${t.team_id}" ${t.team_id===current?'selected':''}>${escapeHtml(t.team_name)}</option>`)].join('');
+    }
+
+    function renderKnockout(){
+      const container=el('knockout-bracket'), summary=el('knockout-summary');
+      if(!knockoutBracket){ container.innerHTML='<div class="knockout-empty">Create a draw to see the live bracket.</div>'; return; }
+      const allMatches=knockoutBracket.rounds.flatMap(r=>r.matches), completed=allMatches.filter(m=>m.winner).length;
+      summary.innerHTML=`<strong>${knockoutBracket.totalTeams} teams</strong><span>${knockoutBracket.size} bracket slots</span><span>${knockoutBracket.byeCount} byes</span><span>${completed}/${allMatches.length} winners selected</span>${knockoutBracket.champion?`<strong>Champion: ${escapeHtml(teamName(knockoutBracket.champion))}</strong>`:''}`;
+      container.innerHTML='<div class="bracket-canvas">'+knockoutBracket.rounds.map((round,ri)=>`<section class="round-column"><div class="round-title">${escapeHtml(round.name)}${ri===0&&knockoutEditing?' - EDITING':''}</div><div class="round-matches">${round.matches.map((match,mi)=>renderKnockoutMatch(match,ri,mi)).join('')}</div></section>`).join('')+'</div>';
+      const canvas=container.querySelector('.bracket-canvas');
+      window.requestAnimationFrame(()=>drawKnockoutConnectors(canvas));
+      container.querySelectorAll('button[data-knockout-winner]').forEach(button=>button.addEventListener('click',()=>{
+        const [ri,mi]=button.dataset.knockoutWinner.split(':').map(Number); const match=knockoutBracket.rounds[ri].matches[mi]; if(match.is_bye||knockoutEditing)return; match.winner=button.dataset.team; recalculateKnockout(); renderKnockout();
+      }));
+      container.querySelectorAll('select[data-knockout-slot]').forEach(select=>select.addEventListener('change',e=>changeKnockoutSlot(Number(e.target.dataset.round),Number(e.target.dataset.match),e.target.dataset.slot,e.target.value||null)));
+      container.querySelectorAll('select[data-knockout-umpire]').forEach(select=>select.addEventListener('change',e=>{
+        const [ri,mi]=e.target.dataset.knockoutUmpire.split(':').map(Number);
+        knockoutBracket.rounds[ri].matches[mi].umpire_id=e.target.value;
+      }));
+      ['edit-knockout','reset-knockout','save-knockout','export-knockout-excel','export-knockout-pdf'].forEach(id=>el(id).disabled=false);
+      el('cancel-knockout-edit').style.display=knockoutEditing?'inline-block':'none';
+      el('edit-knockout').textContent=knockoutEditing?'Save First-Round Teams':'Set First-Round Teams';
+    }
+
+    function renderKnockoutMatch(match,ri,mi){
+      const slot=(id,key)=>knockoutEditing&&ri===0?`<select data-knockout-slot="true" data-round="${ri}" data-match="${mi}" data-slot="${key}">${knockoutTeamOptions(id)}</select>`:`<button type="button" class="${match.winner===id?'winner':''}" data-knockout-winner="${ri}:${mi}" data-team="${id||''}" ${!id||match.is_bye?'disabled':''}>${escapeHtml(id?teamName(id):'BYE')}</button>`;
+      return `<div class="bracket-match ${match.is_bye?'bye':''} ${!match.team_a_id&&!match.team_b_id?'pending':''}" data-round="${ri}" data-match="${mi}">${slot(match.team_a_id,'a')}${slot(match.team_b_id,'b')}<div class="bracket-meta">${match.is_bye?'Bye advances automatically':match.winner?'Winner selected':'Select a winner'}</div>${ri===0&&!knockoutEditing&&match.team_a_id&&match.team_b_id?`<select data-knockout-umpire="${ri}:${mi}"><option value="">Select Umpire</option>${umpires.map(u=>`<option value="${u.umpire_id}" ${u.umpire_id===match.umpire_id?'selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>`:''}</div>`;
+    }
+
+    function changeKnockoutSlot(ri,mi,slot,value){
+      if(ri!==0||!knockoutEditing)return;
+      const slots=knockoutBracket.rounds[0].matches.flatMap(m=>[m.team_a_id,m.team_b_id]);
+      const index=mi*2+(slot==='b'?1:0); const old=slots[index];
+      if(old===value){ return; }
+      const other=value === null ? slots.indexOf(null) : slots.indexOf(value);
+      if(other>=0&&other!==index){ slots[other]=old; slots[index]=value; }
+      else if(value === null){ alert('A BYE can only swap with an existing bye slot.'); renderKnockout(); return; }
+      else { slots[index]=value; }
+      const ids=slots.filter(Boolean); const requiredByes=knockoutBracket.size-knockoutBracket.totalTeams;
+      if(slots.filter(value=>!value).length!==requiredByes || new Set(ids).size!==knockoutBracket.totalTeams || ids.some(id=>!teams.some(team=>team.team_id===id))){ alert('That placement would create an invalid first-round draw.'); renderKnockout(); return; }
+      for(let i=0;i<slots.length;i+=2) if(!slots[i]&&!slots[i+1]){ alert('A match cannot contain two byes.'); renderKnockout(); return; }
+      knockoutBracket.rounds[0].matches.forEach((m,i)=>{m.team_a_id=slots[i*2];m.team_b_id=slots[i*2+1];m.winner=null;});
+      knockoutBracket.rounds.slice(1).forEach(r=>r.matches.forEach(m=>{m.team_a_id=null;m.team_b_id=null;m.winner=null;})); recalculateKnockout(); renderKnockout();
+    }
+
+    function knockoutDrawRows(){
+      return knockoutBracket.rounds.flatMap((round,ri)=>round.matches.filter(m=>m.team_a_id&&m.team_b_id).map((m,mi)=>({group_name:round.name,stage_name:`${knockoutBracket.stage} - ${round.name}`,team_a_id:m.team_a_id,team_b_id:m.team_b_id,match_number:ri*100+mi+1,match_status:'Scheduled',umpire_id:m.umpire_id||''})));
+    }
+
+    function saveKnockout(){ const rows=knockoutDrawRows(); if(!rows.length){alert('Select at least one complete knockout match.');return;} sendSavePayload(rows,'knockout'); }
+
 
     function sendSavePayload(draws, scope){
       const payload = {tournament_id: tournamentId, draws, scope};
@@ -301,10 +530,30 @@
     el('save-group-draws').addEventListener('click',saveGroupMatches);
     el('save-manual-draws').addEventListener('click',saveManualMatches);
     el('create-manual-match').addEventListener('click',addManualMatch);
+    el('knockout-bye-mode').addEventListener('change',renderByePicker);
+    el('generate-knockout').addEventListener('click',createKnockout);
+    el('edit-knockout').addEventListener('click',()=>{
+      if(!knockoutBracket)return;
+      if(knockoutEditing){ knockoutEditing=false; knockoutSnapshot=null; recalculateKnockout(); renderKnockout(); return; }
+      knockoutSnapshot=JSON.parse(JSON.stringify(knockoutBracket)); knockoutEditing=true; renderKnockout();
+    });
+    el('cancel-knockout-edit').addEventListener('click',()=>{
+      if(knockoutSnapshot) knockoutBracket=knockoutSnapshot;
+      knockoutSnapshot=null; knockoutEditing=false; recalculateKnockout(); renderKnockout();
+    });
+    el('reset-knockout').addEventListener('click',()=>{
+      if(!knockoutBracket)return;
+      knockoutBracket.rounds.forEach((round,ri)=>round.matches.forEach(match=>{match.winner=null;if(ri>0){match.team_a_id=null;match.team_b_id=null;}}));
+      recalculateKnockout(); renderKnockout();
+    });
+    el('save-knockout').addEventListener('click',saveKnockout);
+    el('export-knockout-excel').addEventListener('click',()=>downloadMatchesExcel(knockoutDrawRows(),`knockout-fixtures-${tournamentId}.xls`));
+    el('export-knockout-pdf').addEventListener('click',exportKnockoutBracketPDF);
+    window.addEventListener('resize',()=>{ const canvas=el('knockout-bracket').querySelector('.bracket-canvas'); if(knockoutBracket&&canvas) window.requestAnimationFrame(()=>drawKnockoutConnectors(canvas)); });
     el('back-list').addEventListener('click',()=>location.href='/tournaments');
 
     // load
-    fetchData();
+    fetchData().then(renderByePicker);
   })();
   </script>
 </body>
