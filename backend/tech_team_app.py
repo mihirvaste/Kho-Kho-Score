@@ -11,6 +11,11 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http import cookies
 from urllib.parse import parse_qs, urlparse
+
+try:
+    from openpyxl import load_workbook
+except ImportError:  # pragma: no cover - gracefully falls back when dependency is unavailable
+    load_workbook = None
 # Draws system removed: no draw_services import
 
 HOST = "127.0.0.1"
@@ -280,16 +285,66 @@ def get_knockout_draw(tournament_id):
     }
 
 
+def _extract_match_id_from_path(path):
+    parts = [part for part in path.split('/') if part]
+    if len(parts) >= 3 and parts[0] == 'api' and parts[1] == 'matches':
+        return parts[2]
+    return ''
+
+
 def _build_match_score_sheet(match_id, match_row, teams, players, umpires):
-    team_a_name = match_row.get('team_a_name') or ''
-    team_b_name = match_row.get('team_b_name') or ''
+    team_a_name = match_row.get('team_a_name') or next((t.get('team_name') for t in teams if t.get('team_id') == match_row.get('team_a_id')), '')
+    team_b_name = match_row.get('team_b_name') or next((t.get('team_name') for t in teams if t.get('team_id') == match_row.get('team_b_id')), '')
     umpire_name = ''
     umpire_row = next((u for u in umpires if u.get('umpire_id') == match_row.get('umpire_id')), None)
     if umpire_row:
         umpire_name = umpire_row.get('name') or ''
 
-    team_a_players = [p for p in players if p.get('team_id') == match_row.get('team_a_id')]
-    team_b_players = [p for p in players if p.get('team_id') == match_row.get('team_b_id')]
+    def sort_players(player_rows):
+        return sorted(
+            player_rows,
+            key=lambda p: (
+                p.get('chest_number') is None,
+                p.get('chest_number') if p.get('chest_number') is not None else 999999,
+                p.get('player_name') or '',
+            ),
+        )
+
+    team_a_players = sort_players([p for p in players if p.get('team_id') == match_row.get('team_a_id')])
+    team_b_players = sort_players([p for p in players if p.get('team_id') == match_row.get('team_b_id')])
+
+    template_path = BASE_DIR / 'score-sheet' / 'Kho_Kho_Score_Sheet.xlsx'
+    workbook_path = BASE_DIR / 'score-sheet' / f'{match_id}_score_sheet.xlsx'
+
+    if load_workbook is not None:
+        workbook = load_workbook(template_path)
+        sheet = workbook[workbook.sheetnames[0]]
+
+        team_a_players = team_a_players[:12]
+        team_b_players = team_b_players[:12]
+        team_a_subs = sort_players([p for p in players if p.get('team_id') == match_row.get('team_a_id')])[12:15]
+        team_b_subs = sort_players([p for p in players if p.get('team_id') == match_row.get('team_b_id')])[12:15]
+
+        sheet['C15'] = f"TEAM: {team_a_name}"
+        sheet['AA15'] = f"TEAM: {team_b_name}"
+
+        for index, player in enumerate(team_a_players):
+            sheet[f'C{16 + index}'] = player.get('player_name') or ''
+        for index, player in enumerate(team_b_players):
+            sheet[f'AA{16 + index}'] = player.get('player_name') or ''
+
+        for index, player in enumerate(team_a_subs):
+            sheet[f'J{28 + index}'] = player.get('player_name') or ''
+        for index, player in enumerate(team_b_subs):
+            sheet[f'AH{28 + index}'] = player.get('player_name') or ''
+
+        # The template’s umpire area is a merged field. Write into the first
+        # editable cell of that merged block instead of trying to write via an
+        # offset from a MergedCell wrapper object.
+        sheet['AI50'] = umpire_name
+
+        workbook.save(workbook_path)
+        return workbook_path
 
     rows = [
         ['Match Score Sheet', ''],
@@ -305,12 +360,6 @@ def _build_match_score_sheet(match_id, match_row, teams, players, umpires):
     rows.extend([[''], ['Team B Players', '']])
     rows.extend([[p.get('player_name') or '', p.get('kkfi_number') or ''] for p in team_b_players])
     rows.extend([[''], ['Notes', '']])
-
-    values = []
-    def add_value(value):
-        if value not in values:
-            values.append(value)
-        return values.index(value)
 
     shared_strings = []
     sheet_rows = []
@@ -340,67 +389,17 @@ def _build_match_score_sheet(match_id, match_row, teams, players, umpires):
             xml_cells.append(f'<c r="{ref}" t="{cell_type}"><v>{shared_idx}</v></c>')
         xml_rows.append(f'<row r="{row_index}">' + ''.join(xml_cells) + '</row>')
 
-    workbook_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets>
-    <sheet name="Sheet1" sheetId="1" r:id="rId1"/>
-  </sheets>
-</workbook>'''
-    rels_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>'''
-    content_types_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
-  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
-</Types>'''
-    styles_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
-  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
-  <borders count="1"><border/></borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment horizontal="left"/></xf></cellXfs>
-  <cellStyles count="1"><cellStyle name="Normal" xfId="0"/></cellStyles>
-</styleSheet>'''
-    app_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
- xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-  <Application>Microsoft Excel</Application>
-</Properties>'''
-    core_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
- xmlns:dc="http://purl.org/dc/elements/1.1/"
- xmlns:dcterms="http://purl.org/dc/terms/"
- xmlns:dcmitype="http://purl.org/dc/dcmitype/"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <dc:title>Match Score Sheet</dc:title>
-  <dc:creator>KhoKhoScore</dc:creator>
-  <cp:lastModifiedBy>KhoKhoScore</cp:lastModifiedBy>
-  <dcterms:created xsi:type="dcterms:W3CDTF">{datetime.datetime.utcnow().replace(microsecond=0).isoformat()}Z</dcterms:created>
-  <dcterms:modified xsi:type="dcterms:W3CDTF">{datetime.datetime.utcnow().replace(microsecond=0).isoformat()}Z</dcterms:modified>
-</cp:coreProperties>'''
-
     shared_strings_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="{0}" uniqueCount="{0}">{1}</sst>'.format(len(shared_strings), ''.join(f'<si><t>{saxutils.escape(text)}</t></si>' for text in shared_strings))
     worksheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>{0}</sheetData></worksheet>'.format(''.join(xml_rows))
 
-    workbook_path = BASE_DIR / 'score-sheet' / f'{match_id}_score_sheet.xlsx'
-    with zipfile.ZipFile(workbook_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr('xl/workbook.xml', workbook_xml)
-        zf.writestr('xl/_rels/workbook.xml.rels', rels_xml)
-        zf.writestr('xl/worksheets/sheet1.xml', worksheet_xml)
-        zf.writestr('xl/sharedStrings.xml', shared_strings_xml)
-        zf.writestr('xl/styles.xml', styles_xml)
-        zf.writestr('docProps/app.xml', app_xml)
-        zf.writestr('docProps/core.xml', core_xml)
-        zf.writestr('[Content_Types].xml', content_types_xml)
+    with zipfile.ZipFile(template_path) as src, zipfile.ZipFile(workbook_path, 'w', zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            data = src.read(info.filename)
+            if info.filename == 'xl/worksheets/sheet1.xml':
+                data = worksheet_xml.encode('utf-8')
+            elif info.filename == 'xl/sharedStrings.xml':
+                data = shared_strings_xml.encode('utf-8')
+            dst.writestr(info, data)
     return workbook_path
 
 
@@ -767,10 +766,13 @@ class Handler(BaseHTTPRequestHandler):
         # Draws API removed
 
         if path.startswith("/api/matches/"):
-            match_id = path.rsplit("/", 1)[-1]
+            match_id = _extract_match_id_from_path(path)
             if "/score-sheet" in path:
                 with sqlite3.connect(DB_PATH) as db:
-                    row = db.execute("SELECT match_id, draw_id, match_number, tournament_id, COALESCE(stage_name, group_name) AS stage_name, team_a_id, team_b_id, match_status, is_follow_on_enforced, final_winner_id, win_type, win_margin, umpire_id FROM matches WHERE match_id = ?", (match_id,)).fetchone()
+                    row = db.execute(
+                        "SELECT m.match_id, m.draw_id, m.match_number, m.tournament_id, COALESCE(m.stage_name, m.group_name) AS stage_name, m.team_a_id, m.team_b_id, m.match_status, m.is_follow_on_enforced, m.final_winner_id, m.win_type, m.win_margin, m.umpire_id, t_a.team_name AS team_a_name, t_b.team_name AS team_b_name FROM matches m LEFT JOIN teams t_a ON t_a.team_id = m.team_a_id LEFT JOIN teams t_b ON t_b.team_id = m.team_b_id WHERE m.match_id = ?",
+                        (match_id,),
+                    ).fetchone()
                     if row:
                         match_row = {
                             "match_id": row[0],
@@ -786,6 +788,8 @@ class Handler(BaseHTTPRequestHandler):
                             "win_type": row[10],
                             "win_margin": row[11],
                             "umpire_id": row[12] or "",
+                            "team_a_name": row[13] or "",
+                            "team_b_name": row[14] or "",
                         }
                         teams = get_team_rows()
                         players = get_player_rows()
@@ -1192,7 +1196,7 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         length = int(self.headers.get("Content-Length", "0"))
         if path.startswith("/api/matches/") and self.session_token() in SESSIONS:
-            match_id = path.rsplit("/", 1)[-1]
+            match_id = _extract_match_id_from_path(path)
             data = parse_json_body(self, length)
             with sqlite3.connect(DB_PATH) as db:
                 db.execute(
@@ -1243,7 +1247,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         if path.startswith("/api/matches/") and self.session_token() in SESSIONS:
-            match_id = path.rsplit("/", 1)[-1]
+            match_id = _extract_match_id_from_path(path)
             with sqlite3.connect(DB_PATH) as db:
                 db.execute("DELETE FROM matches WHERE match_id = ?", (match_id,))
             send_json(self, {"success": True})

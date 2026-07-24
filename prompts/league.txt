@@ -1,0 +1,12 @@
+Now we are wroking on Create Draws
+And there are 3 tabs now go to ### League
+there we need to create a combination of group stage and Knockouts
+here there will be only one group so there must be step 1 to select how many teams are there in group stage
+selectt teamns
+then button named = Create all to all matches
+On clicking on this button it should create a list below
+where you show all round robin match will and here we need to select the umpire so its step 2
+after selecting all umpire there should be button names save all matches
+on click of save all matches it should show are you sure you want to save all matches into db
+and working yes no button
+on click of yes all matches got save into db.

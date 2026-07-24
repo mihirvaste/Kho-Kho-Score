@@ -4,6 +4,8 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+from openpyxl import load_workbook
+
 from backend import tech_team_app
 
 
@@ -152,6 +154,49 @@ class TechTeamPortalTests(unittest.TestCase):
                     ("Knockout Stage - Quarter Final", "TE0001", "TE0002"),
                     ("Knockout Stage - Semi Final", "TE0003", "TE0004"),
                 ])
+            finally:
+                tech_team_app.DB_PATH = previous_db
+
+    def test_extract_match_id_from_score_sheet_route(self):
+        self.assertEqual(
+            tech_team_app._extract_match_id_from_path("/api/matches/TM0018/score-sheet"),
+            "TM0018",
+        )
+
+    def test_score_sheet_export_populates_team_player_and_umpire_fields(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            temp_db = Path(tmp_dir) / "login.db"
+            previous_db = tech_team_app.DB_PATH
+            tech_team_app.DB_PATH = temp_db
+            try:
+                tech_team_app.setup_database()
+                with closing(sqlite3.connect(temp_db)) as db:
+                    db.execute("INSERT INTO teams (team_id, team_name, tournament_id, manager_id) VALUES (?, ?, ?, ?)", ("TE0001", "Alpha Team", "KT0001", None))
+                    db.execute("INSERT INTO teams (team_id, team_name, tournament_id, manager_id) VALUES (?, ?, ?, ?)", ("TE0002", "Beta Team", "KT0001", None))
+                    db.execute("INSERT INTO players (player_id, team_id, player_name, kkfi_number, chest_number, manager_id) VALUES (?, ?, ?, ?, ?, ?)", ("PL0001", "TE0001", "Player One", "KKFI001", 1, None))
+                    db.execute("INSERT INTO players (player_id, team_id, player_name, kkfi_number, chest_number, manager_id) VALUES (?, ?, ?, ?, ?, ?)", ("PL0002", "TE0001", "Player Two", "KKFI002", 2, None))
+                    db.execute("INSERT INTO players (player_id, team_id, player_name, kkfi_number, chest_number, manager_id) VALUES (?, ?, ?, ?, ?, ?)", ("PL0003", "TE0002", "Player Three", "KKFI003", 3, None))
+                    db.execute("INSERT INTO players (player_id, team_id, player_name, kkfi_number, chest_number, manager_id) VALUES (?, ?, ?, ?, ?, ?)", ("PL0004", "TE0002", "Player Four", "KKFI004", 4, None))
+                    db.execute("INSERT INTO umpires (umpire_id, name, kkfi_number, aadhar_photo_url, gender, age, phone, email, password_hash, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ("UM0001", "Umpire One", "KKFI1001", None, "M", 35, "9999999999", "umpire@example.com", "hash", 0))
+                    db.execute("INSERT INTO matches (match_id, draw_id, match_number, tournament_id, group_name, stage_name, team_a_id, team_b_id, match_status, umpire_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ("MT0001", "DW0001", 1, "KT0001", "Group A", "Group A", "TE0001", "TE0002", "Scheduled", "UM0001"))
+                    db.commit()
+
+                output_path = tech_team_app._build_match_score_sheet(
+                    "MT0001",
+                    {"match_id": "MT0001", "team_a_id": "TE0001", "team_b_id": "TE0002", "stage_name": "Group A", "umpire_id": "UM0001"},
+                    tech_team_app.get_team_rows(),
+                    tech_team_app.get_player_rows(),
+                    tech_team_app.get_umpire_rows(),
+                )
+
+                workbook = load_workbook(output_path)
+                sheet = workbook[workbook.sheetnames[0]]
+
+                self.assertEqual(sheet['C15'].value, 'TEAM: Alpha Team')
+                self.assertEqual(sheet['AA15'].value, 'TEAM: Beta Team')
+                self.assertEqual(sheet['C16'].value, 'Player One')
+                self.assertEqual(sheet['AA16'].value, 'Player Three')
+                self.assertEqual(sheet['AI50'].value, 'Umpire One')
             finally:
                 tech_team_app.DB_PATH = previous_db
 
